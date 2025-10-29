@@ -12,10 +12,7 @@
             
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <button onclick="recOpen()" type="button" class="btn btn-primary">Open Recorder</button>
-                    <button onclick="recStart()" type="button" class="btn btn-primary">Start Recording</button>
-                    <button onclick="recStop()" type="button" class="btn btn-danger">Stop Recording</button>
-                    <button onclick="recPlay()" type="button" class="btn btn-success">Play</button>
+                    <button id="record-toggle-btn" type="button" class="btn btn-primary">Start Recording</button>
                     <button onclick="recUpload()" type="button" class="btn btn-warning">Upload</button>
                     <span id="status-indicator" class="ms-3">Status: Idle</span>
                 </div>
@@ -30,8 +27,10 @@
 <script src="https://cdn.jsdelivr.net/gh/xiangyuecn/Recorder@latest/src/engine/pcm.js"></script>
 <script>
     var rec, recBlob;
+    var isRecording = false;
+    var recordToggleBtn = document.getElementById('record-toggle-btn');
 
-    function recOpen() {
+    function recOpenAndStart() {
         rec = Recorder({
             type: "pcm",
             sampleRate: 16000,
@@ -43,39 +42,49 @@
 
         rec.open(function () {
             document.getElementById('status-indicator').innerText = 'Recorder opened';
+            rec.start();
+            isRecording = true;
+            recordToggleBtn.innerText = 'Stop Recording';
+            recordToggleBtn.classList.remove('btn-primary');
+            recordToggleBtn.classList.add('btn-danger');
+            document.getElementById('status-indicator').innerText = 'Recording started';
         }, function (msg, isUserNotAllow) {
             document.getElementById('status-indicator').innerText = 'Recorder failed to open: ' + msg;
+            isRecording = false;
+            recordToggleBtn.innerText = 'Start Recording';
+            recordToggleBtn.classList.remove('btn-danger');
+            recordToggleBtn.classList.add('btn-primary');
         });
     }
 
-    function recStart() {
-        if (!rec) {
-            recOpen();
-        }
-        rec.start();
-        document.getElementById('status-indicator').innerText = 'Recording started';
-    }
-
-    function recStop() {
+    function recStopAndClose() {
         rec.stop(function (blob, duration) {
             recBlob = blob;
+            isRecording = false;
+            recordToggleBtn.innerText = 'Start Recording';
+            recordToggleBtn.classList.remove('btn-danger');
+            recordToggleBtn.classList.add('btn-primary');
             document.getElementById('status-indicator').innerText = 'Recording stopped';
+            rec.close(); // Close the microphone
+            rec = null; // Clear the recorder instance
         }, function (msg) {
             document.getElementById('status-indicator').innerText = 'Recording failed: ' + msg;
+            isRecording = false;
+            recordToggleBtn.innerText = 'Start Recording';
+            recordToggleBtn.classList.remove('btn-danger');
+            recordToggleBtn.classList.add('btn-primary');
+            rec.close(); // Close the microphone even on failure
+            rec = null; // Clear the recorder instance
         });
     }
 
-    function recPlay() {
-        if (!recBlob) {
-            document.getElementById('status-indicator').innerText = 'No recording to play';
-            return;
+    recordToggleBtn.addEventListener('click', function() {
+        if (isRecording) {
+            recStopAndClose();
+        } else {
+            recOpenAndStart();
         }
-        var audio = document.createElement("audio");
-        audio.controls = true;
-        document.body.appendChild(audio);
-        audio.src = (window.URL || webkitURL).createObjectURL(recBlob);
-        audio.play();
-    }
+    });
 
     function recUpload() {
         if (!recBlob) {
