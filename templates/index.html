@@ -104,7 +104,11 @@
             if (data.error) {
                 throw new Error(data.error);
             }
-            document.getElementById('query-text').value = data.text;
+            var queryTextarea = document.getElementById('query-text');
+            if (queryTextarea.value) {
+                queryTextarea.value += ' '; // Add a space if there's existing text
+            }
+            queryTextarea.value += data.text;
             document.getElementById('status-indicator').innerText = 'Upload successful';
         })
         .catch(error => {

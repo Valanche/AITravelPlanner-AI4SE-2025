@@ -20,12 +20,12 @@ This covers the main user interaction on the home page (`/`), which is only acce
 
 -   **Technology:** HTML forms, JavaScript, Baidu ASR API.
 -   **Implementation:**
-    1.  **UI:** The home page will have a `<textarea>` for text input and buttons for recording audio.
+    1.  **UI:** The home page will have a `<textarea>` for text input and a single toggle button for recording audio.
     2.  **Text Input:** The user can type in the textarea and submit the query via a standard form `POST` request.
     3.  **Voice Input:**
-        -   **Client-Side (JavaScript):** When the user initiates recording, JavaScript will capture audio directly in PCM format. This PCM audio data is then sent via a standard `fetch` POST request to the `/transcribe` endpoint on the Flask backend.
+        -   **Client-Side (JavaScript):** A single toggle button manages the recording process. When activated, JavaScript captures audio directly in PCM format, opening the microphone. When deactivated, recording stops, the microphone is closed, and the PCM audio data is sent via a standard `fetch` POST request to the `/transcribe` endpoint on the Flask backend.
         -   **Backend (Flask):** The `/transcribe` route in `app.py` receives the PCM audio file. It then calls the `STTService` (which uses the Baidu ASR API) to transcribe the audio. The transcribed text is returned to the client.
-        -   **Client-Side Display:** The JavaScript receives the transcribed text and populates the `<textarea>` with it.
+        -   **Client-Side Display:** The JavaScript receives the transcribed text and appends it to the content of the `<textarea>`.
 
 ## 3. AI-Powered Itinerary Generation & Display (FR2)
 

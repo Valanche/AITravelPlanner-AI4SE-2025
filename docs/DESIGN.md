@@ -28,8 +28,8 @@ A monolithic web application architecture will be used. A single Flask applicati
     -   **Reasoning:** We will use server-side rendering to keep the frontend simple. Jinja2 is the standard templating engine for Flask and is perfectly suited for this.
 -   **Styling: Bootstrap**
     -   **Reasoning:** Bootstrap is a popular CSS framework that will allow us to create a clean and responsive user interface with minimal custom CSS.
--   **Speech Recognition: Baidu ASR (Client-side PCM recording)**
-    -   **Reasoning:** The application will use Baidu ASR for speech-to-text conversion. Client-side JavaScript will record audio directly in PCM format, which is then sent to the backend for transcription, improving efficiency by avoiding server-side audio format conversion.
+-   **Speech Recognition: Baidu ASR (Client-side PCM recording with simplified controls)**
+    -   **Reasoning:** The application will use Baidu ASR for speech-to-text conversion. Client-side JavaScript will record audio directly in PCM format. Recording controls are simplified to a single toggle button that manages microphone access (opens on start, closes on stop) and recording state, improving user experience and efficiency by avoiding server-side audio format conversion.
 
 ### 3.3 Authentication and Database
 
