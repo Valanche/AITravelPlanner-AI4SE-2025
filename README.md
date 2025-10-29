@@ -11,7 +11,7 @@ This project is an AI-based travel planner application built with Flask and Supa
 
 2.  **Set up environment variables:**
     -   Copy `.env.example` to a new file named `.env`.
-    -   Fill in your Supabase URL and Key in the `.env` file.
+    -   Fill in your Supabase URL/Key and Baidu AI credentials (APP_ID, API_KEY, SECRET_KEY) in the `.env` file.
     -   In your Supabase project settings, disable the "Confirm email" option under Authentication -> Providers -> Email.
 
 3.  **Run the application:**

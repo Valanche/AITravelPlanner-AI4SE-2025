@@ -1,7 +1,112 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>Welcome to the AI Travel Planner</h1>
-    <p>Your journey begins here. Tell us where you want to go!</p>
-    <!-- The travel planning form will go here in a future step -->
+    <div class="container">
+        <h1 class="my-4">AI Travel Planner</h1>
+        <p>Describe your travel plans below using text or your voice.</p>
+        
+        <form id="plan-form">
+            <div class="mb-3">
+                <textarea class="form-control" id="query-text" name="query" rows="5" placeholder="e.g., 'I want to go to Japan for 5 days with a budget of 10,000 CNY...'" ></textarea>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <button onclick="recOpen()" type="button" class="btn btn-primary">Open Recorder</button>
+                    <button onclick="recStart()" type="button" class="btn btn-primary">Start Recording</button>
+                    <button onclick="recStop()" type="button" class="btn btn-danger">Stop Recording</button>
+                    <button onclick="recPlay()" type="button" class="btn btn-success">Play</button>
+                    <button onclick="recUpload()" type="button" class="btn btn-warning">Upload</button>
+                    <span id="status-indicator" class="ms-3">Status: Idle</span>
+                </div>
+                <button type="submit" class="btn btn-success">Generate Plan</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/gh/xiangyuecn/Recorder@latest/recorder.mp3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/xiangyuecn/Recorder@latest/src/engine/pcm.js"></script>
+<script>
+    var rec, recBlob;
+
+    function recOpen() {
+        rec = Recorder({
+            type: "pcm",
+            sampleRate: 16000,
+            bitRate: 16,
+            onProcess: function (buffers, powerLevel, bufferDuration, bufferSampleRate) {
+                document.getElementById('status-indicator').innerText = 'Recording: ' + (bufferDuration / 1000).toFixed(2) + 's';
+            }
+        });
+
+        rec.open(function () {
+            document.getElementById('status-indicator').innerText = 'Recorder opened';
+        }, function (msg, isUserNotAllow) {
+            document.getElementById('status-indicator').innerText = 'Recorder failed to open: ' + msg;
+        });
+    }
+
+    function recStart() {
+        if (!rec) {
+            recOpen();
+        }
+        rec.start();
+        document.getElementById('status-indicator').innerText = 'Recording started';
+    }
+
+    function recStop() {
+        rec.stop(function (blob, duration) {
+            recBlob = blob;
+            document.getElementById('status-indicator').innerText = 'Recording stopped';
+        }, function (msg) {
+            document.getElementById('status-indicator').innerText = 'Recording failed: ' + msg;
+        });
+    }
+
+    function recPlay() {
+        if (!recBlob) {
+            document.getElementById('status-indicator').innerText = 'No recording to play';
+            return;
+        }
+        var audio = document.createElement("audio");
+        audio.controls = true;
+        document.body.appendChild(audio);
+        audio.src = (window.URL || webkitURL).createObjectURL(recBlob);
+        audio.play();
+    }
+
+    function recUpload() {
+        if (!recBlob) {
+            document.getElementById('status-indicator').innerText = 'No recording to upload';
+            return;
+        }
+
+        var formData = new FormData();
+        formData.append('audio_file', recBlob, 'recording.pcm');
+
+        fetch('/transcribe', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            document.getElementById('query-text').value = data.text;
+            document.getElementById('status-indicator').innerText = 'Upload successful';
+        })
+        .catch(error => {
+            console.error('Upload Error:', error);
+            document.getElementById('status-indicator').innerText = 'Upload failed: ' + error.message;
+        });
+    }
+
+    document.getElementById('plan-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        alert("Plan generation is not yet implemented.");
+    });
+</script>
 {% endblock %}

@@ -4,39 +4,28 @@ This document details the implementation design for each functional requirement 
 
 ## 1. User Management (FR4)
 
-This is the foundation for saving and managing plans. Authentication logic will be handled by the Flask backend to keep the client-side simple.
+This is the foundation for saving and managing plans. The application is protected, requiring users to log in before accessing the main features.
 
 -   **Technology:** Flask, `supabase-py`.
 -   **Assumption:** Email confirmation has been disabled in the Supabase project settings for simpler registration.
 -   **Implementation:**
-    1.  **Login/Register Forms:** The `login.html` and `register.html` templates will contain standard HTML forms that `POST` directly to the `/login` and `/register` Flask routes.
-    2.  **Backend Registration (`/register` route):**
-        -   The route will accept `POST` requests.
-        -   It will extract the email and password from the form data.
-        -   It will call `supabase.auth.sign_up()` with the user's credentials.
-        -   It will show a success message and redirect to the login page.
-    3.  **Backend Login (`/login` route):**
-        -   The route will accept `POST` requests.
-        -   It will extract the email and password from the form data.
-        -   It will call `supabase.auth.sign_in_with_password()`.
-        -   On successful login, it will store the user's information in the Flask `session` and redirect to the `/my-plans` page.
-        -   If there is an error (e.g., wrong password), it will display an error message on the login page.
-    4.  **Session Management:** The Flask `session` will be used to track the authenticated user. The `login_required` decorator will protect routes that require a user to be logged in.
-    5.  **Logout:** The `/logout` route will simply clear the Flask `session` and redirect to the home page.
+    1.  **Application Entry Point:** The root route (`/`) is protected. Unauthenticated users accessing the site will be redirected to the `/login` page.
+    2.  **Login/Register Forms:** The `/login` and `/register` routes serve as the entry point for users. If an already authenticated user tries to access these pages, they will be redirected to the main application page (`/`).
+    3.  **Backend Authentication:** The `/login` and `/register` routes handle `POST` requests from the forms, calling the appropriate Supabase functions on the backend to authenticate or create a user.
+    4.  **Session Management:** The Flask `session` is used to track the authenticated user. The `login_required` decorator protects all application routes besides login and register.
+
 ## 2. User Input (FR1)
 
-This covers the main user interaction on the home page.
+This covers the main user interaction on the home page (`/`), which is only accessible after logging in.
 
--   **Technology:** HTML forms, JavaScript, Web Speech API.
+-   **Technology:** HTML forms, JavaScript, Baidu ASR API.
 -   **Implementation:**
-    1.  **UI:** The home page (`/`) will feature a large `<textarea>` inside an HTML `<form>`.
-    2.  **Text Input:** Users can type their query directly into the textarea.
+    1.  **UI:** The home page will have a `<textarea>` for text input and buttons for recording audio.
+    2.  **Text Input:** The user can type in the textarea and submit the query via a standard form `POST` request.
     3.  **Voice Input:**
-        -   A "Start Recording" button will be placed next to the textarea.
-        -   A JavaScript event listener on this button will trigger the `Web Speech API` (`SpeechRecognition` object).
-        -   The API will capture the user's speech and convert it to text.
-        -   The resulting text will be automatically placed into the textarea.
-    4.  **Submission:** The form will be submitted via a `POST` request to the `/plan` route.
+        -   **Client-Side (JavaScript):** When the user initiates recording, JavaScript will capture audio directly in PCM format. This PCM audio data is then sent via a standard `fetch` POST request to the `/transcribe` endpoint on the Flask backend.
+        -   **Backend (Flask):** The `/transcribe` route in `app.py` receives the PCM audio file. It then calls the `STTService` (which uses the Baidu ASR API) to transcribe the audio. The transcribed text is returned to the client.
+        -   **Client-Side Display:** The JavaScript receives the transcribed text and populates the `<textarea>` with it.
 
 ## 3. AI-Powered Itinerary Generation & Display (FR2)
 
@@ -44,11 +33,11 @@ This is the core feature, now enhanced with a map display.
 
 -   **Technology:** Flask, Google Gemini API, Amap JS API 2.0, Amap Web Service API (for Geocoding).
 -   **Implementation:**
-    1.  **Flask Route (`/plan`):**
+    1.  **Flask Route (`/plan`)**:
         -   **Prompt Engineering:** The route will instruct the Gemini API to return a `JSON` object. The JSON must contain a structured itinerary with an array of locations, each having a name and a full street address. Example: `{"days": [{"day": 1, "locations": [{"name": "Shinjuku Gyoen", "address": "11 Naitomachi, Shinjuku City, Tokyo"}]}]}`.
         -   **API Call (Gemini):** The backend calls the Gemini API and parses the resulting JSON string.
         -   **Geocoding:** The backend iterates through the locations from the AI's response. For each location, it makes a server-side request to the Amap Geocoding API to convert the address into latitude and longitude coordinates. This enriched data (including coordinates) is then passed to the template.
-    2.  **Display Page (`plan_display.html`):
+    2.  **Display Page (`plan_display.html`)**:
         -   **Note:** An Amap API Key will be required.
         -   **Layout:** The page will use a two-column layout. The left column will be a scrollable list for the itinerary details. The right, larger column will contain the map `div`.
         -   **Amap API Setup:** The Amap JS API script will be included in the HTML `<head>`.

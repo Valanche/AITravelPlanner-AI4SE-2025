@@ -206,5 +206,16 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Gemini Script
+# Gemini Scripts
 gemini.ps1
+GEMINI.md
+
+# 临时日志
+log.txt
+
+# 参考demo
+ref/
+
+# 音频文件
+temp/
+
