@@ -34,27 +34,34 @@ def generate_plan_mock(query):
         description="Flight from New York (JFK) to Tokyo (NRT)",
         start_time=datetime(2025, 11, 10, 9, 0),
         end_time=datetime(2025, 11, 10, 13, 0),
-        location=models.Location(name="Tokyo Narita Airport", latitude=35.76, longitude=140.38)
+        location=models.Location(name="Tokyo Narita Airport", latitude=35.76, longitude=140.38),
+        estimated_cost=2000.0
     )
     item2 = models.ItineraryItem(
         item_type="Hotel",
         description="Check into The Peninsula Tokyo",
         start_time=datetime(2025, 11, 10, 15, 0),
-        location=models.Location(name="The Peninsula Tokyo", latitude=35.67, longitude=139.76)
+        location=models.Location(name="The Peninsula Tokyo", latitude=35.67, longitude=139.76),
+        estimated_cost=500.0
     )
     item3 = models.ItineraryItem(
         item_type="Activity",
         description="Visit the Meiji Shrine",
         start_time=datetime(2025, 11, 11, 10, 0),
-        location=models.Location(name="Meiji Shrine", latitude=35.67, longitude=139.69)
+        location=models.Location(name="Meiji Shrine", latitude=35.67, longitude=139.69),
+        estimated_cost=50.0
     )
+
+    # Group items by day
+    day1 = models.Day(date=datetime(2025, 11, 10).date(), items=[item1, item2])
+    day2 = models.Day(date=datetime(2025, 11, 11).date(), items=[item3])
 
     # Create the travel plan
     plan = models.TravelPlan(
         user_id="mock_user", # In a real app, this would be the logged-in user's ID
         title=f"Your Trip to Japan based on: '{query[:20]}...'",
         description="A 5-day trip to explore the wonders of Tokyo.",
-        items=[item1, item2, item3]
+        days=[day1, day2]
     )
     return plan
 
@@ -131,13 +138,7 @@ def view_plan(plan_id):
         flash("Plan not found or you don't have access.", "danger")
         return redirect(url_for('my_plans'))
 
-    # Group items by day
-    grouped_items = defaultdict(list)
-    for item in plan.items:
-        if item.start_time:
-            grouped_items[item.start_time.date()].append(item)
-
-    return render_template('plan_details.html', plan=plan, grouped_items=grouped_items)
+    return render_template('plan_details.html', plan=plan)
 
 @app.route('/generate-plan', methods=['POST'])
 @login_required
@@ -150,16 +151,10 @@ def generate_plan_route():
     # Generate the plan (mocked for now)
     plan = generate_plan_mock(query)
     
-    # Group items by day
-    grouped_items = defaultdict(list)
-    for item in plan.items:
-        if item.start_time:
-            grouped_items[item.start_time.date()].append(item)
-    
     # Store plan in session to be able to save it later
     session['generated_plan'] = plan.to_dict()
     
-    return render_template('plan_result.html', plan=plan, grouped_items=grouped_items)
+    return render_template('plan_result.html', plan=plan)
 
 @app.route('/save-plan', methods=['POST'])
 @login_required
@@ -170,29 +165,34 @@ def save_plan_route():
 
     plan_data = session.pop('generated_plan', None)
     
-    items = []
-    for item_data in plan_data.get('items', []):
-        location = None
-        if item_data.get('location'):
-            loc_data = item_data['location']
-            location = models.Location(name=loc_data['name'], latitude=loc_data['latitude'], longitude=loc_data['longitude'])
-        
-        start_time = datetime.fromisoformat(item_data['start_time']) if item_data.get('start_time') else None
-        end_time = datetime.fromisoformat(item_data['end_time']) if item_data.get('end_time') else None
+    days = []
+    for day_data in plan_data.get('days', []):
+        items = []
+        for item_data in day_data.get('items', []):
+            location = None
+            if item_data.get('location'):
+                loc_data = item_data['location']
+                location = models.Location(name=loc_data['name'], latitude=loc_data['latitude'], longitude=loc_data['longitude'])
+            
+            start_time = datetime.fromisoformat(item_data['start_time']) if item_data.get('start_time') else None
+            end_time = datetime.fromisoformat(item_data['end_time']) if item_data.get('end_time') else None
 
-        items.append(models.ItineraryItem(
-            item_type=item_data['item_type'],
-            description=item_data['description'],
-            start_time=start_time,
-            end_time=end_time,
-            location=location
-        ))
+            items.append(models.ItineraryItem(
+                item_type=item_data['item_type'],
+                description=item_data['description'],
+                start_time=start_time,
+                end_time=end_time,
+                location=location,
+                estimated_cost=item_data.get('estimated_cost', 0.0),
+                actual_cost=item_data.get('actual_cost', 0.0)
+            ))
+        days.append(models.Day(date=datetime.fromisoformat(day_data['date']).date(), items=items))
 
     plan = models.TravelPlan(
         user_id=session['user']['id'],
         title=plan_data['title'],
         description=plan_data['description'],
-        items=items
+        days=days
     )
 
     models.create_plan(plan)
