@@ -4,8 +4,11 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 from functools import wraps
 import uuid
+from datetime import datetime
+from collections import defaultdict
 
 from stt_service import STTService
+import models
 
 load_dotenv()
 
@@ -18,6 +21,42 @@ app.secret_key = os.urandom(24)
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_ANON_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
+
+# --- Mock AI Service ---
+def generate_plan_mock(query):
+    """Mocks a call to an AI service to generate a travel plan."""
+    # In a real application, this would call the Gemini API
+    # For now, we'll return a hardcoded plan
+    
+    # Create some itinerary items
+    item1 = models.ItineraryItem(
+        item_type="Flight",
+        description="Flight from New York (JFK) to Tokyo (NRT)",
+        start_time=datetime(2025, 11, 10, 9, 0),
+        end_time=datetime(2025, 11, 10, 13, 0),
+        location=models.Location(name="Tokyo Narita Airport", latitude=35.76, longitude=140.38)
+    )
+    item2 = models.ItineraryItem(
+        item_type="Hotel",
+        description="Check into The Peninsula Tokyo",
+        start_time=datetime(2025, 11, 10, 15, 0),
+        location=models.Location(name="The Peninsula Tokyo", latitude=35.67, longitude=139.76)
+    )
+    item3 = models.ItineraryItem(
+        item_type="Activity",
+        description="Visit the Meiji Shrine",
+        start_time=datetime(2025, 11, 11, 10, 0),
+        location=models.Location(name="Meiji Shrine", latitude=35.67, longitude=139.69)
+    )
+
+    # Create the travel plan
+    plan = models.TravelPlan(
+        user_id="mock_user", # In a real app, this would be the logged-in user's ID
+        title=f"Your Trip to Japan based on: '{query[:20]}...'",
+        description="A 5-day trip to explore the wonders of Tokyo.",
+        items=[item1, item2, item3]
+    )
+    return plan
 
 # --- Flask Routes ---
 @app.context_processor
@@ -46,7 +85,15 @@ def login():
         password = request.form.get('password')
         try:
             user_response = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            session['user'] = {'id': user_response.user.id, 'email': user_response.user.email}
+            user_data = user_response.user
+            session['user'] = {'id': user_data.id, 'email': user_data.email}
+            
+            # Create or get user from our db
+            user = models.get_user(user_data.id)
+            if not user:
+                user = models.User(id=user_data.id, email=user_data.email)
+                models.create_user(user)
+            
             return redirect(url_for('index'))
         except Exception as e:
             flash(f"Login failed: {e}", "danger")
@@ -72,7 +119,97 @@ def register():
 @app.route('/my-plans')
 @login_required
 def my_plans():
-    return render_template('my_plans.html')
+    user_id = session['user']['id']
+    plans = models.get_plans_by_user(user_id)
+    return render_template('my_plans.html', plans=plans)
+
+@app.route('/plan/<plan_id>')
+@login_required
+def view_plan(plan_id):
+    plan = models.get_plan(plan_id)
+    if not plan or plan.user_id != session['user']['id']:
+        flash("Plan not found or you don't have access.", "danger")
+        return redirect(url_for('my_plans'))
+
+    # Group items by day
+    grouped_items = defaultdict(list)
+    for item in plan.items:
+        if item.start_time:
+            grouped_items[item.start_time.date()].append(item)
+
+    return render_template('plan_details.html', plan=plan, grouped_items=grouped_items)
+
+@app.route('/generate-plan', methods=['POST'])
+@login_required
+def generate_plan_route():
+    query = request.form.get('query')
+    if not query:
+        flash("Please provide a query for your travel plan.", "danger")
+        return redirect(url_for('index'))
+
+    # Generate the plan (mocked for now)
+    plan = generate_plan_mock(query)
+    
+    # Group items by day
+    grouped_items = defaultdict(list)
+    for item in plan.items:
+        if item.start_time:
+            grouped_items[item.start_time.date()].append(item)
+    
+    # Store plan in session to be able to save it later
+    session['generated_plan'] = plan.to_dict()
+    
+    return render_template('plan_result.html', plan=plan, grouped_items=grouped_items)
+
+@app.route('/save-plan', methods=['POST'])
+@login_required
+def save_plan_route():
+    if 'generated_plan' not in session:
+        flash("No plan to save.", "danger")
+        return redirect(url_for('index'))
+
+    plan_data = session.pop('generated_plan', None)
+    
+    items = []
+    for item_data in plan_data.get('items', []):
+        location = None
+        if item_data.get('location'):
+            loc_data = item_data['location']
+            location = models.Location(name=loc_data['name'], latitude=loc_data['latitude'], longitude=loc_data['longitude'])
+        
+        start_time = datetime.fromisoformat(item_data['start_time']) if item_data.get('start_time') else None
+        end_time = datetime.fromisoformat(item_data['end_time']) if item_data.get('end_time') else None
+
+        items.append(models.ItineraryItem(
+            item_type=item_data['item_type'],
+            description=item_data['description'],
+            start_time=start_time,
+            end_time=end_time,
+            location=location
+        ))
+
+    plan = models.TravelPlan(
+        user_id=session['user']['id'],
+        title=plan_data['title'],
+        description=plan_data['description'],
+        items=items
+    )
+
+    models.create_plan(plan)
+    flash("Plan saved successfully!", "success")
+    return redirect(url_for('my_plans'))
+
+@app.route('/plan/<plan_id>/delete', methods=['POST'])
+@login_required
+def delete_plan_route(plan_id):
+    plan = models.get_plan(plan_id)
+    if not plan or plan.user_id != session['user']['id']:
+        flash("Plan not found or you don't have access.", "danger")
+        return redirect(url_for('my_plans'))
+        
+    models.delete_plan(plan_id)
+    flash("Plan deleted successfully.", "success")
+    return redirect(url_for('my_plans'))
 
 @app.route('/logout')
 def logout():
@@ -106,10 +243,6 @@ def transcribe_audio():
         baidu_app_id = os.environ.get("BAIDU_APP_ID")
         baidu_api_key = os.environ.get("BAIDU_API_KEY")
         baidu_secret_key = os.environ.get("BAIDU_SECRET_KEY")
-
-        print(f"[App Debug] BAIDU_APP_ID: {baidu_app_id}")
-        print(f"[App Debug] BAIDU_API_KEY: {baidu_api_key}")
-        print(f"[App Debug] BAIDU_SECRET_KEY: {baidu_secret_key}")
 
         if not all([baidu_app_id, baidu_api_key, baidu_secret_key]):
             raise Exception("Baidu voice service not configured on server.")

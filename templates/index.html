@@ -5,7 +5,7 @@
         <h1 class="my-4">AI Travel Planner</h1>
         <p>Describe your travel plans below using text or your voice.</p>
         
-        <form id="plan-form">
+        <form id="plan-form" action="{{ url_for('generate_plan_route') }}" method="post">
             <div class="mb-3">
                 <textarea class="form-control" id="query-text" name="query" rows="5" placeholder="e.g., 'I want to go to Japan for 5 days with a budget of 10,000 CNY...'" ></textarea>
             </div>
@@ -117,9 +117,6 @@
         });
     }
 
-    document.getElementById('plan-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        alert("Plan generation is not yet implemented.");
-    });
+
 </script>
 {% endblock %}

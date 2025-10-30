@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Plan Details{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">{{ plan.title }}</h2>
+    <p>{{ plan.description }}</p>
+    <hr>
+    {% include '_plan_view.html' %}
+    <a href="{{ url_for('my_plans') }}" class="btn btn-secondary mt-3">Back to My Plans</a>
+</div>
+{% endblock %}
