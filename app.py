@@ -1,11 +1,12 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from dotenv import load_dotenv
-from supabase import create_client, Client
+import os
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from dotenv import load_dotenv
 from functools import wraps
 import uuid
 from datetime import datetime
-from collections import defaultdict
 
 from stt_service import STTService
 import models
@@ -16,40 +17,51 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# --- Environment and Credentials ---
-# Supabase setup
-supabase_url = os.environ.get("SUPABASE_URL")
-supabase_key = os.environ.get("SUPABASE_ANON_KEY")
-supabase: Client = create_client(supabase_url, supabase_key)
-
 # --- Mock AI Service ---
 def generate_plan_mock(query):
     """Mocks a call to an AI service to generate a travel plan."""
     # In a real application, this would call the Gemini API
     # For now, we'll return a hardcoded plan
     
+    # Create some locations
+    location1 = models.Location(name="Tokyo Narita Airport", latitude=35.76, longitude=140.38)
+    location2 = models.Location(name="The Peninsula Tokyo", latitude=35.67, longitude=139.76)
+    location3 = models.Location(name="Meiji Shrine", latitude=35.67, longitude=139.69)
+
+    # Create some actual costs
+    cost1 = models.ActualCost(name="Flight ticket", amount=1950.0, currency="USD")
+    cost2 = models.ActualCost(name="Baggage fee", amount=50.0, currency="USD")
+    cost3 = models.ActualCost(name="Nightly rate", amount=480.0, currency="USD")
+    cost4 = models.ActualCost(name="Dinner", amount=70.0, currency="USD")
+
     # Create some itinerary items
     item1 = models.ItineraryItem(
         item_type="Flight",
         description="Flight from New York (JFK) to Tokyo (NRT)",
         start_time=datetime(2025, 11, 10, 9, 0),
         end_time=datetime(2025, 11, 10, 13, 0),
-        location=models.Location(name="Tokyo Narita Airport", latitude=35.76, longitude=140.38),
-        estimated_cost=2000.0
+        location=location1,
+        estimated_cost=2000.0,
+        estimated_cost_currency="USD",
+        actual_costs=[cost1, cost2]
     )
     item2 = models.ItineraryItem(
         item_type="Hotel",
         description="Check into The Peninsula Tokyo",
         start_time=datetime(2025, 11, 10, 15, 0),
-        location=models.Location(name="The Peninsula Tokyo", latitude=35.67, longitude=139.76),
-        estimated_cost=500.0
+        location=location2,
+        estimated_cost=500.0,
+        estimated_cost_currency="USD",
+        actual_costs=[cost3]
     )
     item3 = models.ItineraryItem(
         item_type="Activity",
         description="Visit the Meiji Shrine",
         start_time=datetime(2025, 11, 11, 10, 0),
-        location=models.Location(name="Meiji Shrine", latitude=35.67, longitude=139.69),
-        estimated_cost=50.0
+        location=location3,
+        estimated_cost=50.0,
+        estimated_cost_currency="JPY",
+        actual_costs=[cost4]
     )
 
     # Group items by day
@@ -68,7 +80,7 @@ def generate_plan_mock(query):
 # --- Flask Routes ---
 @app.context_processor
 def inject_supabase_keys():
-    return dict(supabase_url=supabase_url, supabase_key=supabase_key)
+    return dict(supabase_url=models.supabase_url, supabase_key=models.supabase_key)
 
 def login_required(f):
     @wraps(f)
@@ -91,16 +103,9 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         try:
-            user_response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            user_response = models.supabase.auth.sign_in_with_password({"email": email, "password": password})
             user_data = user_response.user
             session['user'] = {'id': user_data.id, 'email': user_data.email}
-            
-            # Create or get user from our db
-            user = models.get_user(user_data.id)
-            if not user:
-                user = models.User(id=user_data.id, email=user_data.email)
-                models.create_user(user)
-            
             return redirect(url_for('index'))
         except Exception as e:
             flash(f"Login failed: {e}", "danger")
@@ -115,7 +120,7 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         try:
-            res = supabase.auth.sign_up({"email": email, "password": password})
+            res = models.supabase.auth.sign_up({"email": email, "password": password})
             flash("Registration successful! You can now log in.", "success")
             return redirect(url_for('login'))
         except Exception as e:
@@ -172,10 +177,19 @@ def save_plan_route():
             location = None
             if item_data.get('location'):
                 loc_data = item_data['location']
-                location = models.Location(name=loc_data['name'], latitude=loc_data['latitude'], longitude=loc_data['longitude'])
+                location = models.Location(id=loc_data['id'], name=loc_data['name'], latitude=loc_data['latitude'], longitude=loc_data['longitude'])
             
             start_time = datetime.fromisoformat(item_data['start_time']) if item_data.get('start_time') else None
             end_time = datetime.fromisoformat(item_data['end_time']) if item_data.get('end_time') else None
+
+            actual_costs = []
+            for cost_data in item_data.get('actual_costs', []):
+                actual_costs.append(models.ActualCost(
+                    id=cost_data['id'],
+                    name=cost_data['name'],
+                    amount=cost_data['amount'],
+                    currency=cost_data['currency']
+                ))
 
             items.append(models.ItineraryItem(
                 item_type=item_data['item_type'],
@@ -184,7 +198,8 @@ def save_plan_route():
                 end_time=end_time,
                 location=location,
                 estimated_cost=item_data.get('estimated_cost', 0.0),
-                actual_cost=item_data.get('actual_cost', 0.0)
+                estimated_cost_currency=item_data.get('estimated_cost_currency', 'USD'),
+                actual_costs=actual_costs
             ))
         days.append(models.Day(date=datetime.fromisoformat(day_data['date']).date(), items=items))
 

@@ -12,8 +12,15 @@
                             <h5 class="mb-1">{{ item.item_type }}: {{ item.description }}</h5>
                             <small>Start: {{ item.start_time.strftime('%H:%M') if item.start_time else 'N/A' }}</small>
                             <small>End: {{ item.end_time.strftime('%H:%M') if item.end_time else 'N/A' }}</small>
-                            <p class="mb-1">Estimated Cost: ${{ "%.2f"|format(item.estimated_cost) }}</p>
-                            <p class="mb-1">Actual Cost: ${{ "%.2f"|format(item.actual_cost) }}</p>
+                            <p class="mb-1">Estimated Cost: ${{ "%.2f"|format(item.estimated_cost) }} {{ item.estimated_cost_currency }}</p>
+                            <div>
+                                <p class="mb-1">Actual Costs:</p>
+                                <ul>
+                                    {% for cost in item.actual_costs %}
+                                        <li>{{ cost.name }}: ${{ "%.2f"|format(cost.amount) }} {{ cost.currency }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
                             {% if item.location %}
                                 <p class="mb-1">Location: {{ item.location.name }}</p>
                             {% endif %}
