@@ -143,7 +143,7 @@ def view_plan(plan_id):
         flash("Plan not found or you don't have access.", "danger")
         return redirect(url_for('my_plans'))
 
-    return render_template('plan_details.html', plan=plan)
+    return render_template('plan_details.html', plan=plan, is_details_view=True)
 
 @app.route('/generate-plan', methods=['POST'])
 @login_required
@@ -159,7 +159,7 @@ def generate_plan_route():
     # Store plan in session to be able to save it later
     session['generated_plan'] = plan.to_dict()
     
-    return render_template('plan_result.html', plan=plan)
+    return render_template('plan_result.html', plan=plan, is_details_view=False)
 
 @app.route('/save-plan', methods=['POST'])
 @login_required
@@ -225,6 +225,33 @@ def delete_plan_route(plan_id):
     models.delete_plan(plan_id)
     flash("Plan deleted successfully.", "success")
     return redirect(url_for('my_plans'))
+
+@app.route('/itinerary-item/<item_id>/costs', methods=['POST'])
+@login_required
+def create_actual_cost_route(item_id):
+    name = request.form.get('name')
+    amount = float(request.form.get('amount'))
+    currency = request.form.get('currency')
+    plan_id = request.form.get('plan_id')
+
+    cost = models.ActualCost(
+        itinerary_item_id=item_id,
+        name=name,
+        amount=amount,
+        currency=currency
+    )
+    models.create_actual_cost(cost)
+
+    flash("Actual cost added successfully!", "success")
+    return redirect(url_for('view_plan', plan_id=plan_id))
+
+@app.route('/actual-cost/<cost_id>/delete', methods=['POST'])
+@login_required
+def delete_actual_cost_route(cost_id):
+    plan_id = request.form.get('plan_id')
+    models.delete_actual_cost(cost_id)
+    flash("Actual cost deleted successfully!", "success")
+    return redirect(url_for('view_plan', plan_id=plan_id))
 
 @app.route('/logout')
 def logout():

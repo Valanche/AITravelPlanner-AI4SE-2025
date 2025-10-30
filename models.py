@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -27,7 +27,7 @@ class TravelPlan:
         self.user_id = user_id
         self.title = title
         self.description = description
-        self.created_at = created_at if created_at else datetime.utcnow()
+        self.created_at = created_at if created_at else datetime.now(timezone.utc).replace(microsecond=0)
         self.days = days if days else []
 
     def to_dict(self):
@@ -204,6 +204,22 @@ def delete_plan(plan_id):
     if location_ids:
         supabase.table('locations').delete().in_('id', location_ids).execute()
 
+    return True
+
+def create_actual_cost(cost):
+    data = supabase.table('actual_costs').insert(cost.to_dict()).execute()
+    if not data.data:
+        raise Exception("Failed to create actual cost")
+    return data.data[0]
+
+def get_actual_cost(cost_id):
+    data = supabase.table('actual_costs').select("*").eq('id', cost_id).single().execute()
+    if not data.data:
+        return None
+    return data.data
+
+def delete_actual_cost(cost_id):
+    supabase.table('actual_costs').delete().eq('id', cost_id).execute()
     return True
 
 def _dict_to_travel_plan(plan_dict):
