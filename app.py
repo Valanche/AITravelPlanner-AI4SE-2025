@@ -143,7 +143,8 @@ def view_plan(plan_id):
         flash("Plan not found or you don't have access.", "danger")
         return redirect(url_for('my_plans'))
 
-    return render_template('plan_details.html', plan=plan, is_details_view=True)
+    amap_key = os.environ.get("AMAP_KEY")
+    return render_template('plan_details.html', plan=plan, is_details_view=True, amap_key=amap_key)
 
 @app.route('/generate-plan', methods=['POST'])
 @login_required
@@ -159,7 +160,8 @@ def generate_plan_route():
     # Store plan in session to be able to save it later
     session['generated_plan'] = plan.to_dict()
     
-    return render_template('plan_result.html', plan=plan, is_details_view=False)
+    amap_key = os.environ.get("AMAP_KEY")
+    return render_template('plan_result.html', plan=plan, is_details_view=False, amap_key=amap_key)
 
 @app.route('/save-plan', methods=['POST'])
 @login_required
