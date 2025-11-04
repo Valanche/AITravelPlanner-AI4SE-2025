@@ -17,22 +17,19 @@
                             {% endif %}
                         </div>
                         {% if is_details_view %}
-                        <div id="actual-costs-{{ item.id }}" class="list-group-item mb-2" style="display: none;" onclick="event.stopPropagation();">
+                        <div id="actual-costs-{{ item.id }}" class="list-group-item mb-2 ms-4" style="display: none;" onclick="event.stopPropagation();">
                             <p class="mb-1 mt-2">Actual Costs:</p>
                             <ul>
                                 {% for cost in item.actual_costs %}
-                                    <li class="d-flex justify-content-between align-items-center">
+                                    <li class="d-flex justify-content-between align-items-center" id="cost-li-{{ cost.id }}">
                                         {{ cost.name }}: {{ "%.2f"|format(cost.amount) }} {{ cost.currency }}
-                                        <form action="{{ url_for('delete_actual_cost_route', cost_id=cost.id) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this cost?');">
-                                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
-                                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                                        </form>
+                                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteActualCost('{{ cost.id }}')">Delete</button>
                                     </li>
                                 {% endfor %}
                             </ul>
                             <hr>
                             <h6>Add New Cost</h6>
-                            <form action="{{ url_for('create_actual_cost_route', item_id=item.id) }}" method="post">
+                            <form id="add-cost-form-{{ item.id }}">
                                 <input type="hidden" name="plan_id" value="{{ plan.id }}">
                                 <div class="row">
                                     <div class="col">
@@ -45,11 +42,57 @@
                                         <input type="text" name="currency" class="form-control" placeholder="Currency" required>
                                     </div>
                                     <div class="col">
-                                        <button type="submit" class="btn btn-primary btn-sm">Add</button>
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="addActualCost('{{ item.id }}')">Add</button>
                                     </div>
                                 </div>
                             </form>
                         </div>
+                        {% endif %}
+                        {% if item.transportations %}
+                            <div class="list-group-item mb-2 ms-4">
+                                <h6 class="mt-2">Transportations:</h6>
+                                <ul class="list-unstyled">
+                                    {% for transportation in item.transportations %}
+                                        <li id="display-transportation-{{ transportation.id }}">
+                                            {{ transportation.transport_type }}: {{ transportation.start_location }} to {{ transportation.end_location }}
+                                            ({{ transportation.estimated_time }}, {{ "%.2f"|format(transportation.estimated_cost) }} {{ item.estimated_cost_currency }})
+                                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEdit('{{ transportation.id }}')">Edit</button>
+                                        </li>
+                                        <li id="edit-transportation-{{ transportation.id }}" style="display: none;">
+                                            <form id="edit-transportation-form-{{ transportation.id }}">
+                                                <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                                                <div class="mb-2">
+                                                    <label>Transport Type</label>
+                                                    <select name="transport_type" class="form-control">
+                                                        <option value="Walking" {% if transportation.transport_type == 'Walking' %}selected{% endif %}>Walking</option>
+                                                        <option value="Cycling" {% if transportation.transport_type == 'Cycling' %}selected{% endif %}>Cycling</option>
+                                                        <option value="Public Transport" {% if transportation.transport_type == 'Public Transport' %}selected{% endif %}>Public Transport</option>
+                                                        <option value="Driving" {% if transportation.transport_type == 'Driving' %}selected{% endif %}>Driving</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label>Start Location</label>
+                                                    <input type="text" name="start_location" class="form-control" value="{{ transportation.start_location }}">
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label>End Location</label>
+                                                    <input type="text" name="end_location" class="form-control" value="{{ transportation.end_location }}">
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label>Estimated Time</label>
+                                                    <input type="text" name="estimated_time" class="form-control" value="{{ transportation.estimated_time }}">
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label>Estimated Cost</label>
+                                                    <input type="number" name="estimated_cost" class="form-control" value="{{ transportation.estimated_cost }}" step="0.01">
+                                                </div>
+                                                <button type="button" class="btn btn-primary btn-sm" onclick="saveTransportation('{{ transportation.id }}')">Save</button>
+                                                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEdit('{{ transportation.id }}')">Cancel</button>
+                                            </form>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
                         {% endif %}
                     {% endfor %}
                 </div>
@@ -77,6 +120,99 @@ function toggleActualCosts(itemId) {
     } else {
         x.style.display = "none";
     }
+}
+
+function toggleEdit(transportationId) {
+    var displayView = document.getElementById("display-transportation-" + transportationId);
+    var editView = document.getElementById("edit-transportation-" + transportationId);
+
+    if (displayView.style.display === "none") {
+        displayView.style.display = "block";
+        editView.style.display = "none";
+    } else {
+        displayView.style.display = "none";
+        editView.style.display = "block";
+    }
+}
+
+function deleteActualCost(costId) {
+    if (!confirm('Are you sure you want to delete this cost?')) {
+        return;
+    }
+
+    fetch(`/actual-cost/${costId}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById(`cost-li-${costId}`).remove();
+        } else {
+            alert('Failed to delete cost.');
+        }
+    });
+}
+
+function addActualCost(itemId) {
+    const form = document.getElementById(`add-cost-form-${itemId}`);
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch(`/itinerary-item/${itemId}/costs`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const ul = document.querySelector(`#actual-costs-${itemId} ul`);
+            const li = document.createElement('li');
+            li.className = 'd-flex justify-content-between align-items-center';
+            li.id = `cost-li-${data.cost.id}`;
+            li.innerHTML = `
+                ${data.cost.name}: ${data.cost.amount.toFixed(2)} ${data.cost.currency}
+                <button type="button" class="btn btn-danger btn-sm" onclick="deleteActualCost('${data.cost.id}')">Delete</button>
+            `;
+            ul.appendChild(li);
+            form.reset();
+        } else {
+            alert('Failed to add cost.');
+        }
+    });
+}
+
+function saveTransportation(transportationId) {
+    const form = document.getElementById(`edit-transportation-form-${transportationId}`);
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    fetch(`/transportation/${transportationId}/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const displayView = document.getElementById(`display-transportation-${transportationId}`);
+            displayView.innerHTML = `
+                ${data.transportation.transport_type}: ${data.transportation.start_location} to ${data.transportation.end_location}
+                (${data.transportation.estimated_time}, ${data.transportation.estimated_cost.toFixed(2)} USD)
+                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEdit('${transportationId}')">Edit</button>
+            `;
+            toggleEdit(transportationId);
+        } else {
+            alert('Failed to update transportation.');
+        }
+    });
 }
 </script>
 

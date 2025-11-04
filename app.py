@@ -34,6 +34,15 @@ def generate_plan_mock(query):
     cost3 = models.ActualCost(name="Nightly rate", amount=480.0, currency="USD")
     cost4 = models.ActualCost(name="Dinner", amount=70.0, currency="USD")
 
+    # Create some transportations
+    transportation1 = models.Transportation(
+        transport_type="Driving",
+        start_location="Tokyo Narita Airport",
+        end_location="The Peninsula Tokyo",
+        estimated_time="1h 30m",
+        estimated_cost=200.0
+    )
+
     # Create some itinerary items
     item1 = models.ItineraryItem(
         item_type="Flight",
@@ -46,6 +55,16 @@ def generate_plan_mock(query):
         actual_costs=[cost1, cost2]
     )
     item2 = models.ItineraryItem(
+        item_type="Transportation",
+        description="Airport Transfer to Hotel",
+        start_time=datetime(2025, 11, 10, 13, 30),
+        end_time=datetime(2025, 11, 10, 15, 0),
+        location=location2,
+        estimated_cost=200.0,
+        estimated_cost_currency="USD",
+        transportations=[transportation1]
+    )
+    item3 = models.ItineraryItem(
         item_type="Hotel",
         description="Check into The Peninsula Tokyo",
         start_time=datetime(2025, 11, 10, 15, 0),
@@ -54,19 +73,28 @@ def generate_plan_mock(query):
         estimated_cost_currency="USD",
         actual_costs=[cost3]
     )
-    item3 = models.ItineraryItem(
+    item4 = models.ItineraryItem(
         item_type="Activity",
         description="Visit the Meiji Shrine",
         start_time=datetime(2025, 11, 11, 10, 0),
         location=location3,
         estimated_cost=50.0,
         estimated_cost_currency="JPY",
-        actual_costs=[cost4]
+        actual_costs=[cost4],
+        transportations=[
+            models.Transportation(
+                transport_type="Public Transport",
+                start_location="The Peninsula Tokyo",
+                end_location="Meiji Shrine",
+                estimated_time="30m",
+                estimated_cost=5.0
+            )
+        ]
     )
 
     # Group items by day
-    day1 = models.Day(date=datetime(2025, 11, 10).date(), items=[item1, item2])
-    day2 = models.Day(date=datetime(2025, 11, 11).date(), items=[item3])
+    day1 = models.Day(date=datetime(2025, 11, 10).date(), items=[item1, item2, item3])
+    day2 = models.Day(date=datetime(2025, 11, 11).date(), items=[item4])
 
     # Create the travel plan
     plan = models.TravelPlan(
@@ -173,13 +201,18 @@ def save_plan_route():
     plan_data = session.pop('generated_plan', None)
     
     days = []
+    location_map = {}
     for day_data in plan_data.get('days', []):
         items = []
         for item_data in day_data.get('items', []):
             location = None
             if item_data.get('location'):
                 loc_data = item_data['location']
-                location = models.Location(id=loc_data['id'], name=loc_data['name'], latitude=loc_data['latitude'], longitude=loc_data['longitude'])
+                if loc_data['id'] in location_map:
+                    location = location_map[loc_data['id']]
+                else:
+                    location = models.Location(name=loc_data['name'], latitude=loc_data['latitude'], longitude=loc_data['longitude'])
+                    location_map[loc_data['id']] = location
             
             start_time = datetime.fromisoformat(item_data['start_time']) if item_data.get('start_time') else None
             end_time = datetime.fromisoformat(item_data['end_time']) if item_data.get('end_time') else None
@@ -187,10 +220,19 @@ def save_plan_route():
             actual_costs = []
             for cost_data in item_data.get('actual_costs', []):
                 actual_costs.append(models.ActualCost(
-                    id=cost_data['id'],
                     name=cost_data['name'],
                     amount=cost_data['amount'],
                     currency=cost_data['currency']
+                ))
+
+            transportations = []
+            for trans_data in item_data.get('transportations', []):
+                transportations.append(models.Transportation(
+                    transport_type=trans_data['transport_type'],
+                    start_location=trans_data['start_location'],
+                    end_location=trans_data['end_location'],
+                    estimated_time=trans_data['estimated_time'],
+                    estimated_cost=trans_data['estimated_cost']
                 ))
 
             items.append(models.ItineraryItem(
@@ -201,7 +243,8 @@ def save_plan_route():
                 location=location,
                 estimated_cost=item_data.get('estimated_cost', 0.0),
                 estimated_cost_currency=item_data.get('estimated_cost_currency', 'USD'),
-                actual_costs=actual_costs
+                actual_costs=actual_costs,
+                transportations=transportations
             ))
         days.append(models.Day(date=datetime.fromisoformat(day_data['date']).date(), items=items))
 
@@ -231,29 +274,35 @@ def delete_plan_route(plan_id):
 @app.route('/itinerary-item/<item_id>/costs', methods=['POST'])
 @login_required
 def create_actual_cost_route(item_id):
-    name = request.form.get('name')
-    amount = float(request.form.get('amount'))
-    currency = request.form.get('currency')
-    plan_id = request.form.get('plan_id')
-
+    data = request.json
     cost = models.ActualCost(
         itinerary_item_id=item_id,
-        name=name,
-        amount=amount,
-        currency=currency
+        name=data['name'],
+        amount=float(data['amount']),
+        currency=data['currency']
     )
-    models.create_actual_cost(cost)
-
-    flash("Actual cost added successfully!", "success")
-    return redirect(url_for('view_plan', plan_id=plan_id))
+    new_cost = models.create_actual_cost(cost)
+    return jsonify({'success': True, 'cost': new_cost.to_dict()})
 
 @app.route('/actual-cost/<cost_id>/delete', methods=['POST'])
 @login_required
 def delete_actual_cost_route(cost_id):
-    plan_id = request.form.get('plan_id')
     models.delete_actual_cost(cost_id)
-    flash("Actual cost deleted successfully!", "success")
-    return redirect(url_for('view_plan', plan_id=plan_id))
+    return jsonify({'success': True})
+
+@app.route('/transportation/<transportation_id>/update', methods=['POST'])
+@login_required
+def update_transportation_route(transportation_id):
+    updated_data = request.json
+    updated_data.pop('plan_id', None) # Remove plan_id as it's not in the transportations table
+
+    if 'estimated_cost' in updated_data:
+        updated_data['estimated_cost'] = float(updated_data['estimated_cost'])
+
+    models.update_transportation(transportation_id, updated_data)
+    
+    transportation = models.get_transportation(transportation_id)
+    return jsonify({'success': True, 'transportation': transportation.to_dict()})
 
 @app.route('/logout')
 def logout():

@@ -56,7 +56,7 @@ class Day:
         }
 
 class ItineraryItem:
-    def __init__(self, item_type, description, start_time=None, end_time=None, location_id=None, location=None, estimated_cost=0.0, estimated_cost_currency='USD', actual_costs=None, id=None, day_id=None):
+    def __init__(self, item_type, description, start_time=None, end_time=None, location_id=None, location=None, estimated_cost=0.0, estimated_cost_currency='USD', actual_costs=None, transportations=None, id=None, day_id=None):
         self.id = id if id else str(uuid.uuid4())
         self.day_id = day_id
         self.item_type = item_type
@@ -68,6 +68,7 @@ class ItineraryItem:
         self.estimated_cost = estimated_cost
         self.estimated_cost_currency = estimated_cost_currency
         self.actual_costs = actual_costs if actual_costs else []
+        self.transportations = transportations if transportations else []
 
     def to_dict(self):
         return {
@@ -82,6 +83,7 @@ class ItineraryItem:
             "estimated_cost": self.estimated_cost,
             "estimated_cost_currency": self.estimated_cost_currency,
             "actual_costs": [cost.to_dict() for cost in self.actual_costs],
+            "transportations": [transportation.to_dict() for transportation in self.transportations],
         }
 
 class Location:
@@ -93,6 +95,27 @@ class Location:
 
     def to_dict(self):
         return {"id": self.id, "name": self.name, "latitude": self.latitude, "longitude": self.longitude}
+
+class Transportation:
+    def __init__(self, transport_type, start_location, end_location, estimated_time, estimated_cost, id=None, itinerary_item_id=None):
+        self.id = id if id else str(uuid.uuid4())
+        self.itinerary_item_id = itinerary_item_id
+        self.transport_type = transport_type
+        self.start_location = start_location
+        self.end_location = end_location
+        self.estimated_time = estimated_time
+        self.estimated_cost = estimated_cost
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "itinerary_item_id": self.itinerary_item_id,
+            "transport_type": self.transport_type,
+            "start_location": self.start_location,
+            "end_location": self.end_location,
+            "estimated_time": self.estimated_time,
+            "estimated_cost": self.estimated_cost,
+        }
 
 class ActualCost:
     def __init__(self, name, amount, currency, id=None, itinerary_item_id=None):
@@ -126,6 +149,7 @@ def create_plan(plan):
         raise Exception("Failed to create plan")
 
     # 2. Insert the days, locations, items and costs
+    inserted_location_ids = set()
     for day in plan.days:
         day.plan_id = plan.id
         day_data = supabase.table('days').insert({
@@ -141,7 +165,7 @@ def create_plan(plan):
             item.day_id = day.id
             
             # Create location if it exists
-            if item.location:
+            if item.location and item.location.id not in inserted_location_ids:
                 item.location_id = item.location.id
                 supabase.table('locations').insert({
                     'id': item.location.id,
@@ -149,6 +173,7 @@ def create_plan(plan):
                     'latitude': item.location.latitude,
                     'longitude': item.location.longitude
                 }).execute()
+                inserted_location_ids.add(item.location.id)
 
             item_insert = {
                 'id': item.id,
@@ -167,6 +192,18 @@ def create_plan(plan):
             if not item_data.data:
                 raise Exception("Failed to create itinerary item")
 
+            for transportation in item.transportations:
+                transportation.itinerary_item_id = item.id
+                supabase.table('transportations').insert({
+                    'id': transportation.id,
+                    'itinerary_item_id': transportation.itinerary_item_id,
+                    'transport_type': transportation.transport_type,
+                    'start_location': transportation.start_location,
+                    'end_location': transportation.end_location,
+                    'estimated_time': transportation.estimated_time,
+                    'estimated_cost': transportation.estimated_cost
+                }).execute()
+
             for cost in item.actual_costs:
                 cost.itinerary_item_id = item.id
                 supabase.table('actual_costs').insert({
@@ -180,14 +217,14 @@ def create_plan(plan):
     return plan
 
 def get_plan(plan_id):
-    plan_data = supabase.table('plans').select("*, days(*, itinerary_items(*, locations(*), actual_costs(*)))").eq('id', plan_id).single().execute()
+    plan_data = supabase.table('plans').select("*, days(*, itinerary_items(*, locations(*), actual_costs(*), transportations(*)))").eq('id', plan_id).single().execute()
     if not plan_data.data:
         return None
 
     return _dict_to_travel_plan(plan_data.data)
 
 def get_plans_by_user(user_id):
-    plans_data = supabase.table('plans').select("*, days(*, itinerary_items(*, locations(*), actual_costs(*)))").eq('user_id', user_id).execute()
+    plans_data = supabase.table('plans').select("*, days(*, itinerary_items(*, locations(*), actual_costs(*), transportations(*)))").eq('user_id', user_id).execute()
     return [_dict_to_travel_plan(plan) for plan in plans_data.data]
 
 def delete_plan(plan_id):
@@ -210,7 +247,13 @@ def create_actual_cost(cost):
     data = supabase.table('actual_costs').insert(cost.to_dict()).execute()
     if not data.data:
         raise Exception("Failed to create actual cost")
-    return data.data[0]
+    return ActualCost(
+        id=data.data[0]['id'],
+        itinerary_item_id=data.data[0]['itinerary_item_id'],
+        name=data.data[0]['name'],
+        amount=data.data[0]['amount'],
+        currency=data.data[0]['currency']
+    )
 
 def get_actual_cost(cost_id):
     data = supabase.table('actual_costs').select("*").eq('id', cost_id).single().execute()
@@ -221,6 +264,26 @@ def get_actual_cost(cost_id):
 def delete_actual_cost(cost_id):
     supabase.table('actual_costs').delete().eq('id', cost_id).execute()
     return True
+
+def update_transportation(transportation_id, updated_data):
+    supabase.table('transportations').update(updated_data).eq('id', transportation_id).execute()
+    return True
+
+def get_transportation(transportation_id):
+    data = supabase.table('transportations').select("*").eq('id', transportation_id).single().execute()
+    if not data.data:
+        return None
+    
+    trans_dict = data.data
+    return Transportation(
+        id=trans_dict['id'],
+        itinerary_item_id=trans_dict['itinerary_item_id'],
+        transport_type=trans_dict['transport_type'],
+        start_location=trans_dict['start_location'],
+        end_location=trans_dict['end_location'],
+        estimated_time=trans_dict['estimated_time'],
+        estimated_cost=trans_dict['estimated_cost']
+    )
 
 def _dict_to_travel_plan(plan_dict):
     days = []
@@ -247,6 +310,18 @@ def _dict_to_travel_plan(plan_dict):
                     currency=cost_dict['currency']
                 ))
 
+            transportations = []
+            for trans_dict in item_dict.get('transportations', []):
+                transportations.append(Transportation(
+                    id=trans_dict['id'],
+                    itinerary_item_id=trans_dict['itinerary_item_id'],
+                    transport_type=trans_dict['transport_type'],
+                    start_location=trans_dict['start_location'],
+                    end_location=trans_dict['end_location'],
+                    estimated_time=trans_dict['estimated_time'],
+                    estimated_cost=trans_dict['estimated_cost']
+                ))
+
             items.append(ItineraryItem(
                 id=item_dict['id'],
                 day_id=item_dict['day_id'],
@@ -258,7 +333,8 @@ def _dict_to_travel_plan(plan_dict):
                 location_id=item_dict.get('location_id'),
                 estimated_cost=item_dict.get('estimated_cost', 0.0),
                 estimated_cost_currency=item_dict.get('estimated_cost_currency', 'USD'),
-                actual_costs=actual_costs
+                actual_costs=actual_costs,
+                transportations=transportations
             ))
         days.append(Day(
             id=day_dict['id'],
@@ -314,6 +390,15 @@ def _dict_to_travel_plan(plan_dict):
 #    - name: text
 #    - amount: float8
 #    - currency: text
+#
+# 6. transportations:
+#    - id: uuid (Primary Key)
+#    - itinerary_item_id: uuid (Foreign Key to itinerary_items.id, with cascading delete)
+#    - transport_type: text
+#    - start_location: text
+#    - end_location: text
+#    - estimated_time: text
+#    - estimated_cost: float8
 #
 # Make sure to enable Row Level Security (RLS) on these tables and create policies
 # that allow users to access only their own data.
