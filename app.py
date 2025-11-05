@@ -19,91 +19,336 @@ app.secret_key = os.urandom(24)
 
 # --- Mock AI Service ---
 def generate_plan_mock(query):
-    """Mocks a call to an AI service to generate a travel plan."""
-    # In a real application, this would call the Gemini API
-    # For now, we'll return a hardcoded plan
-    
-    # Create some locations
-    location1 = models.Location(name="Tokyo Narita Airport", latitude=35.76, longitude=140.38)
-    location2 = models.Location(name="The Peninsula Tokyo", latitude=35.67, longitude=139.76)
-    location3 = models.Location(name="Meiji Shrine", latitude=35.67, longitude=139.69)
+    """Mocks a call to an AI service to generate a travel plan for Nanjing."""
+    # Locations for the Nanjing Plan
+    loc_nanjing_south_station = models.Location(name="南京南站", city="南京")
+    loc_xinjiekou_station = models.Location(name="新街口站", city="南京")
+    loc_ming_xiaoling = models.Location(name="明孝陵", city="南京")
+    loc_meiling_palace = models.Location(name="美龄宫", city="南京")
+    loc_nanjing_museum = models.Location(name="南京博物院", city="南京")
+    loc_fuzimiao = models.Location(name="夫子庙秦淮风光带", city="南京")
+    loc_memorial_hall = models.Location(name="侵华日军南京大屠杀遇难同胞纪念馆", city="南京")
+    loc_presidential_palace = models.Location(name="总统府", city="南京")
+    loc_jiming_temple = models.Location(name="古鸡鸣寺", city="南京")
+    loc_taicheng = models.Location(name="台城", city="南京")
+    loc_xuanwu_lake = models.Location(name="玄武湖公园", city="南京")
 
-    # Create some actual costs
-    cost1 = models.ActualCost(name="Flight ticket", amount=1950.0, currency="USD")
-    cost2 = models.ActualCost(name="Baggage fee", amount=50.0, currency="USD")
-    cost3 = models.ActualCost(name="Nightly rate", amount=480.0, currency="USD")
-    cost4 = models.ActualCost(name="Dinner", amount=70.0, currency="USD")
+    # Day 1
+    day1_items = [
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="从南京南站至酒店",
+            start_time=datetime(2025, 11, 10, 10, 0),
+            end_time=datetime(2025, 11, 10, 10, 30),
+            location=loc_xinjiekou_station,
+            estimated_cost=4.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="南京南站",
+                    end_location="新街口站",
+                    estimated_time="30m",
+                    estimated_cost=4.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Hotel",
+            description="酒店安顿",
+            start_time=datetime(2025, 11, 10, 10, 30),
+            end_time=datetime(2025, 11, 10, 11, 0),
+            location=loc_xinjiekou_station,
+            estimated_cost=0,
+            estimated_cost_currency="CNY"
+        ),
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="前往钟山风景区",
+            start_time=datetime(2025, 11, 10, 11, 0),
+            end_time=datetime(2025, 11, 10, 11, 40),
+            location=loc_ming_xiaoling,
+            estimated_cost=3.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="新街口站",
+                    end_location="明孝陵", # Simplified to attraction name
+                    estimated_time="25m",
+                    estimated_cost=3.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Activity",
+            description="游览明孝陵",
+            start_time=datetime(2025, 11, 10, 11, 40),
+            end_time=datetime(2025, 11, 10, 13, 0),
+            location=loc_ming_xiaoling,
+            estimated_cost=70.0,
+            estimated_cost_currency="CNY"
+        ),
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="景区内交通",
+            start_time=datetime(2025, 11, 10, 13, 0),
+            end_time=datetime(2025, 11, 10, 13, 20),
+            location=loc_meiling_palace,
+            estimated_cost=10.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Driving", # Using Driving for "观光车"
+                    start_location="明孝陵",
+                    end_location="美龄宫",
+                    estimated_time="10m",
+                    estimated_cost=10.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Activity",
+            description="参观美龄宫",
+            start_time=datetime(2025, 11, 10, 13, 20),
+            end_time=datetime(2025, 11, 10, 14, 10),
+            location=loc_meiling_palace,
+            estimated_cost=30.0,
+            estimated_cost_currency="CNY"
+        ),
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="返回市区并用午餐",
+            start_time=datetime(2025, 11, 10, 14, 10),
+            end_time=datetime(2025, 11, 10, 14, 50),
+            location=loc_xinjiekou_station,
+            estimated_cost=53.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="美龄宫",
+                    end_location="新街口站",
+                    estimated_time="40m",
+                    estimated_cost=13.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Activity",
+            description="参观南京博物院",
+            start_time=datetime(2025, 11, 10, 14, 50),
+            end_time=datetime(2025, 11, 10, 18, 20),
+            location=loc_nanjing_museum,
+            estimated_cost=0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="新街口站",
+                    end_location="南京博物院",
+                    estimated_time="20m",
+                    estimated_cost=2.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="前往夫子庙",
+            start_time=datetime(2025, 11, 10, 18, 20),
+            end_time=datetime(2025, 11, 10, 19, 0),
+            location=loc_fuzimiao,
+            estimated_cost=3.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="南京博物院",
+                    end_location="夫子庙秦淮风光带",
+                    estimated_time="40m",
+                    estimated_cost=3.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Activity",
+            description="夫子庙夜游 & 晚餐",
+            start_time=datetime(2025, 11, 10, 19, 0),
+            end_time=datetime(2025, 11, 10, 21, 0),
+            location=loc_fuzimiao,
+            estimated_cost=180.0,
+            estimated_cost_currency="CNY"
+        ),
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="返回酒店",
+            start_time=datetime(2025, 11, 10, 21, 0),
+            end_time=datetime(2025, 11, 10, 21, 30),
+            location=loc_xinjiekou_station,
+            estimated_cost=3.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="夫子庙秦淮风光带",
+                    end_location="新街口站",
+                    estimated_time="30m",
+                    estimated_cost=3.0
+                )
+            ]
+        )
+    ]
+    day1 = models.Day(date=datetime(2025, 11, 10).date(), items=day1_items)
 
-    # Create some transportations
-    transportation1 = models.Transportation(
-        transport_type="Driving",
-        start_location="Tokyo Narita Airport",
-        end_location="The Peninsula Tokyo",
-        estimated_time="1h 30m",
-        estimated_cost=200.0
-    )
-
-    # Create some itinerary items
-    item1 = models.ItineraryItem(
-        item_type="Flight",
-        description="Flight from New York (JFK) to Tokyo (NRT)",
-        start_time=datetime(2025, 11, 10, 9, 0),
-        end_time=datetime(2025, 11, 10, 13, 0),
-        location=location1,
-        estimated_cost=2000.0,
-        estimated_cost_currency="USD",
-        actual_costs=[cost1, cost2]
-    )
-    item2 = models.ItineraryItem(
-        item_type="Transportation",
-        description="Airport Transfer to Hotel",
-        start_time=datetime(2025, 11, 10, 13, 30),
-        end_time=datetime(2025, 11, 10, 15, 0),
-        location=location2,
-        estimated_cost=200.0,
-        estimated_cost_currency="USD",
-        transportations=[transportation1]
-    )
-    item3 = models.ItineraryItem(
-        item_type="Hotel",
-        description="Check into The Peninsula Tokyo",
-        start_time=datetime(2025, 11, 10, 15, 0),
-        location=location2,
-        estimated_cost=500.0,
-        estimated_cost_currency="USD",
-        actual_costs=[cost3]
-    )
-    item4 = models.ItineraryItem(
-        item_type="Activity",
-        description="Visit the Meiji Shrine",
-        start_time=datetime(2025, 11, 11, 10, 0),
-        location=location3,
-        estimated_cost=50.0,
-        estimated_cost_currency="JPY",
-        actual_costs=[cost4],
-        transportations=[
-            models.Transportation(
-                transport_type="Public Transport",
-                start_location="The Peninsula Tokyo",
-                end_location="Meiji Shrine",
-                estimated_time="30m",
-                estimated_cost=5.0
-            )
-        ]
-    )
-
-    # Group items by day
-    day1 = models.Day(date=datetime(2025, 11, 10).date(), items=[item1, item2, item3])
-    day2 = models.Day(date=datetime(2025, 11, 11).date(), items=[item4])
+    # Day 2
+    day2_items = [
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="前往纪念馆",
+            start_time=datetime(2025, 11, 11, 8, 30),
+            end_time=datetime(2025, 11, 11, 9, 0),
+            location=loc_memorial_hall,
+            estimated_cost=3.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="新街口站",
+                    end_location="侵华日军南京大屠杀遇难同胞纪念馆",
+                    estimated_time="30m",
+                    estimated_cost=3.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Activity",
+            description="参观纪念馆",
+            start_time=datetime(2025, 11, 11, 9, 0),
+            end_time=datetime(2025, 11, 11, 11, 30),
+            location=loc_memorial_hall,
+            estimated_cost=0,
+            estimated_cost_currency="CNY"
+        ),
+        models.ItineraryItem(
+            item_type="Meal",
+            description="午餐",
+            start_time=datetime(2025, 11, 11, 11, 30),
+            end_time=datetime(2025, 11, 11, 12, 30),
+            location=loc_memorial_hall, # Assuming lunch near memorial hall
+            estimated_cost=40.0,
+            estimated_cost_currency="CNY"
+        ),
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="前往总统府",
+            start_time=datetime(2025, 11, 11, 12, 30),
+            end_time=datetime(2025, 11, 11, 13, 0),
+            location=loc_presidential_palace,
+            estimated_cost=2.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="侵华日军南京大屠杀遇难同胞纪念馆",
+                    end_location="总统府",
+                    estimated_time="30m",
+                    estimated_cost=2.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Activity",
+            description="参观总统府",
+            start_time=datetime(2025, 11, 11, 13, 0),
+            end_time=datetime(2025, 11, 11, 15, 0),
+            location=loc_presidential_palace,
+            estimated_cost=35.0,
+            estimated_cost_currency="CNY"
+        ),
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="前往古鸡鸣寺",
+            start_time=datetime(2025, 11, 11, 15, 0),
+            end_time=datetime(2025, 11, 11, 15, 20),
+            location=loc_jiming_temple,
+            estimated_cost=2.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="总统府",
+                    end_location="古鸡鸣寺",
+                    estimated_time="20m",
+                    estimated_cost=2.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Activity",
+            description="游览古鸡鸣寺与台城",
+            start_time=datetime(2025, 11, 11, 15, 20),
+            end_time=datetime(2025, 11, 11, 17, 0),
+            location=loc_taicheng,
+            estimated_cost=40.0,
+            estimated_cost_currency="CNY"
+        ),
+        models.ItineraryItem(
+            item_type="Activity",
+            description="玄武湖黄昏漫步",
+            start_time=datetime(2025, 11, 11, 17, 0),
+            end_time=datetime(2025, 11, 11, 18, 30),
+            location=loc_xuanwu_lake,
+            estimated_cost=0,
+            estimated_cost_currency="CNY"
+        ),
+        models.ItineraryItem(
+            item_type="Meal",
+            description="晚餐 & 返回酒店取行李",
+            start_time=datetime(2025, 11, 11, 18, 30),
+            end_time=datetime(2025, 11, 11, 19, 30),
+            location=loc_xinjiekou_station,
+            estimated_cost=52.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="玄武湖公园",
+                    end_location="新街口站",
+                    estimated_time="30m",
+                    estimated_cost=2.0
+                )
+            ]
+        ),
+        models.ItineraryItem(
+            item_type="Transportation",
+            description="前往南京南站",
+            start_time=datetime(2025, 11, 11, 19, 30),
+            end_time=datetime(2025, 11, 11, 20, 0),
+            location=loc_nanjing_south_station,
+            estimated_cost=4.0,
+            estimated_cost_currency="CNY",
+            transportations=[
+                models.Transportation(
+                    transport_type="Public Transport",
+                    start_location="新街口站",
+                    end_location="南京南站",
+                    estimated_time="30m",
+                    estimated_cost=4.0
+                )
+            ]
+        )
+    ]
+    day2 = models.Day(date=datetime(2025, 11, 11).date(), items=day2_items)
 
     # Create the travel plan
     plan = models.TravelPlan(
-        user_id="mock_user", # In a real app, this would be the logged-in user's ID
-        title=f"Your Trip to Japan based on: '{query[:20]}...'",
-        description="A 5-day trip to explore the wonders of Tokyo.",
+        user_id="mock_user",
+        title=f"南京两日游：钟山风华与秦淮月夜",
+        description="一份详细的南京两日游路线计划，从南京南站出发，涵盖历史与现代景观。",
         days=[day1, day2]
     )
     return plan
+
 
 # --- Flask Routes ---
 @app.context_processor
@@ -171,8 +416,16 @@ def view_plan(plan_id):
         flash("Plan not found or you don't have access.", "danger")
         return redirect(url_for('my_plans'))
 
+    # Create location-city map for the frontend
+    location_city_map = {}
+    for day in plan.days:
+        for item in day.items:
+            if item.location and item.location.name and item.location.city:
+                location_city_map[item.location.name] = item.location.city
+
     amap_key = os.environ.get("AMAP_KEY")
-    return render_template('plan_details.html', plan=plan, is_details_view=True, amap_key=amap_key)
+    amap_security_key = os.environ.get("AMAP_SECURITY_KEY")
+    return render_template('plan_details.html', plan=plan, is_details_view=True, amap_key=amap_key, amap_security_key=amap_security_key, location_city_map=location_city_map)
 
 @app.route('/generate-plan', methods=['POST'])
 @login_required
@@ -184,12 +437,20 @@ def generate_plan_route():
 
     # Generate the plan (mocked for now)
     plan = generate_plan_mock(query)
+
+    # Create location-city map for the frontend
+    location_city_map = {}
+    for day in plan.days:
+        for item in day.items:
+            if item.location and item.location.name and item.location.city:
+                location_city_map[item.location.name] = item.location.city
     
     # Store plan in session to be able to save it later
     session['generated_plan'] = plan.to_dict()
     
     amap_key = os.environ.get("AMAP_KEY")
-    return render_template('plan_result.html', plan=plan, is_details_view=False, amap_key=amap_key)
+    amap_security_key = os.environ.get("AMAP_SECURITY_KEY")
+    return render_template('plan_result.html', plan=plan, is_details_view=False, amap_key=amap_key, amap_security_key=amap_security_key, location_city_map=location_city_map)
 
 @app.route('/save-plan', methods=['POST'])
 @login_required
@@ -211,7 +472,7 @@ def save_plan_route():
                 if loc_data['id'] in location_map:
                     location = location_map[loc_data['id']]
                 else:
-                    location = models.Location(name=loc_data['name'], latitude=loc_data['latitude'], longitude=loc_data['longitude'])
+                    location = models.Location(name=loc_data['name'], city=loc_data['city'])
                     location_map[loc_data['id']] = location
             
             start_time = datetime.fromisoformat(item_data['start_time']) if item_data.get('start_time') else None

@@ -87,14 +87,13 @@ class ItineraryItem:
         }
 
 class Location:
-    def __init__(self, name, latitude, longitude, id=None):
+    def __init__(self, name, city, id=None):
         self.id = id if id else str(uuid.uuid4())
         self.name = name
-        self.latitude = latitude
-        self.longitude = longitude
+        self.city = city
 
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "latitude": self.latitude, "longitude": self.longitude}
+        return {"id": self.id, "name": self.name, "city": self.city}
 
 class Transportation:
     def __init__(self, transport_type, start_location, end_location, estimated_time, estimated_cost, id=None, itinerary_item_id=None):
@@ -170,8 +169,7 @@ def create_plan(plan):
                 supabase.table('locations').insert({
                     'id': item.location.id,
                     'name': item.location.name,
-                    'latitude': item.location.latitude,
-                    'longitude': item.location.longitude
+                    'city': item.location.city
                 }).execute()
                 inserted_location_ids.add(item.location.id)
 
@@ -296,8 +294,7 @@ def _dict_to_travel_plan(plan_dict):
                 location = Location(
                     id=loc_dict['id'],
                     name=loc_dict['name'],
-                    latitude=loc_dict['latitude'],
-                    longitude=loc_dict['longitude']
+                    city=loc_dict['city']
                 )
             
             actual_costs = []
@@ -370,8 +367,7 @@ def _dict_to_travel_plan(plan_dict):
 # 3. locations:
 #    - id: uuid (Primary Key)
 #    - name: text
-#    - latitude: float8
-#    - longitude: float8
+#    - city: text
 #
 # 4. itinerary_items:
 #    - id: uuid (Primary Key)

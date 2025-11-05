@@ -53,10 +53,11 @@
                                 <h6 class="mt-2">Transportations:</h6>
                                 <ul class="list-unstyled">
                                     {% for transportation in item.transportations %}
-                                        <li id="display-transportation-{{ transportation.id }}">
+                                        <li id="display-transportation-{{ transportation.id }}"
+                                            onclick="planRoute('{{ transportation.transport_type }}', '{{ transportation.start_location }}', '{{ transportation.end_location }}')">
                                             {{ transportation.transport_type }}: {{ transportation.start_location }} to {{ transportation.end_location }}
                                             ({{ transportation.estimated_time }}, {{ "%.2f"|format(transportation.estimated_cost) }} {{ item.estimated_cost_currency }})
-                                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEdit('{{ transportation.id }}')">Edit</button>
+                                            <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); toggleEdit('{{ transportation.id }}')">Edit</button>
                                         </li>
                                         <li id="edit-transportation-{{ transportation.id }}" style="display: none;">
                                             <form id="edit-transportation-form-{{ transportation.id }}">
@@ -107,6 +108,7 @@
         <div class="card h-100">
             <div class="card-body p-0">
                 <div id="container" style="height: 100%; min-height: 600px;"></div>
+                <div id="panel" style="position: absolute; background-color: white; max-height: 90%; overflow-y: auto; top: 10px; right: 10px; width: 280px;"></div>
             </div>
         </div>
     </div>
@@ -115,10 +117,12 @@
 <script>
 function toggleActualCosts(itemId) {
     var x = document.getElementById("actual-costs-" + itemId);
-    if (x.style.display === "none") {
-        x.style.display = "block";
-    } else {
-        x.style.display = "none";
+    if (x) { // Check if the element exists
+        if (x.style.display === "none") {
+            x.style.display = "block";
+        } else {
+            x.style.display = "none";
+        }
     }
 }
 
@@ -217,13 +221,85 @@ function saveTransportation(transportationId) {
 </script>
 
 <!-- Map Scripts -->
-<script src="https://webapi.amap.com/maps?v=1.4.15&key={{ amap_key }}"></script>
+<script type="text/javascript">
+    window._AMapSecurityConfig = {
+        securityJsCode: '{{ amap_security_key }}',
+    };
+</script>
+<script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key={{ amap_key }}&plugin=AMap.Driving,AMap.Walking,AMap.Riding,AMap.Transfer,AMap.Adaptor"></script>
 <script>
     var map = new AMap.Map('container', {
         resizeEnable: true, //是否监控地图容器尺寸变化
         zoom: 10, //初始化地图层级
         center: [116.397428, 39.90923] //初始化地图中心点
     });
+
+    var locationCityMap = {{ location_city_map | tojson }};
+
+    var driving, walking, riding, transfer;
+    map.on('complete', function() {
+        driving = new AMap.Driving({ map: map, panel: "panel" });
+        walking = new AMap.Walking({ map: map, panel: "panel" });
+        riding = new AMap.Riding({ map: map, panel: "panel" });
+        transfer = new AMap.Transfer({ map: map, panel: "panel" });
+    });
+
+    function clearRoute() {
+        if (driving) driving.clear();
+        if (walking) walking.clear();
+        if (riding) riding.clear();
+        if (transfer) transfer.clear();
+    }
+
+    function planRoute(transportType, startLocation, endLocation) {
+        clearRoute();
+        
+        var startCity = locationCityMap[startLocation];
+        var endCity = locationCityMap[endLocation];
+
+        var searchPoints = [
+            { keyword: startLocation, city: startCity },
+            { keyword: endLocation, city: endCity }
+        ];
+
+        switch (transportType) {
+            case 'Driving':
+                driving.search(searchPoints, function(status, result) {
+                    if (status !== 'complete') {
+                        alert('Failed to get driving data: ' + result);
+                    }
+                });
+                break;
+            case 'Walking':
+                walking.search(searchPoints, function(status, result) {
+                    if (status !== 'complete') {
+                        alert('Failed to get walking data: ' + result);
+                    }
+                });
+                break;
+            case 'Cycling':
+                riding.search(searchPoints, function(status, result) {
+                    if (status !== 'complete') {
+                        alert('Failed to get cycling data: ' + result);
+                    }
+                });
+                break;
+            case 'Public Transport':
+                var transCity = startCity; // Default to start city
+                if (startCity !== endCity) {
+                    console.warn("Cross-city public transport is complex. Using start city for the query.");
+                }
+                transfer.setCity(transCity);
+                transfer.search(searchPoints, function(status, result) {
+                    if (status !== 'complete') {
+                        alert('Failed to get public transport data: ' + result);
+                    }
+                });
+                break;
+            default:
+                alert('Unsupported transport type: ' + transportType);
+        }
+    }
 </script>
 
 
