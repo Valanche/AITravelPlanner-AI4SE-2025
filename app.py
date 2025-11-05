@@ -36,49 +36,13 @@ def generate_plan_mock(query):
     # Day 1
     day1_items = [
         models.ItineraryItem(
-            item_type="Transportation",
-            description="从南京南站至酒店",
+            item_type="Hotel",
+            description="抵达酒店：从南京南站乘坐地铁1号线至新街口站",
             start_time=datetime(2025, 11, 10, 10, 0),
-            end_time=datetime(2025, 11, 10, 10, 30),
+            end_time=datetime(2025, 11, 10, 11, 0),
             location=loc_xinjiekou_station,
             estimated_cost=4.0,
             estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="南京南站",
-                    end_location="新街口站",
-                    estimated_time="30m",
-                    estimated_cost=4.0
-                )
-            ]
-        ),
-        models.ItineraryItem(
-            item_type="Hotel",
-            description="酒店安顿",
-            start_time=datetime(2025, 11, 10, 10, 30),
-            end_time=datetime(2025, 11, 10, 11, 0),
-            location=loc_xinjiekou_station,
-            estimated_cost=0,
-            estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Transportation",
-            description="前往钟山风景区",
-            start_time=datetime(2025, 11, 10, 11, 0),
-            end_time=datetime(2025, 11, 10, 11, 40),
-            location=loc_ming_xiaoling,
-            estimated_cost=3.0,
-            estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="新街口站",
-                    end_location="明孝陵", # Simplified to attraction name
-                    estimated_time="25m",
-                    estimated_cost=3.0
-                )
-            ]
         ),
         models.ItineraryItem(
             item_type="Activity",
@@ -86,26 +50,8 @@ def generate_plan_mock(query):
             start_time=datetime(2025, 11, 10, 11, 40),
             end_time=datetime(2025, 11, 10, 13, 0),
             location=loc_ming_xiaoling,
-            estimated_cost=70.0,
+            estimated_cost=73.0,
             estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Transportation",
-            description="景区内交通",
-            start_time=datetime(2025, 11, 10, 13, 0),
-            end_time=datetime(2025, 11, 10, 13, 20),
-            location=loc_meiling_palace,
-            estimated_cost=10.0,
-            estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Driving", # Using Driving for "观光车"
-                    start_location="明孝陵",
-                    end_location="美龄宫",
-                    estimated_time="10m",
-                    estimated_cost=10.0
-                )
-            ]
         ),
         models.ItineraryItem(
             item_type="Activity",
@@ -113,26 +59,8 @@ def generate_plan_mock(query):
             start_time=datetime(2025, 11, 10, 13, 20),
             end_time=datetime(2025, 11, 10, 14, 10),
             location=loc_meiling_palace,
-            estimated_cost=30.0,
+            estimated_cost=40.0, # 30 ticket + 10 transport
             estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Transportation",
-            description="返回市区并用午餐",
-            start_time=datetime(2025, 11, 10, 14, 10),
-            end_time=datetime(2025, 11, 10, 14, 50),
-            location=loc_xinjiekou_station,
-            estimated_cost=53.0,
-            estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="美龄宫",
-                    end_location="新街口站",
-                    estimated_time="40m",
-                    estimated_cost=13.0
-                )
-            ]
         ),
         models.ItineraryItem(
             item_type="Activity",
@@ -140,35 +68,8 @@ def generate_plan_mock(query):
             start_time=datetime(2025, 11, 10, 14, 50),
             end_time=datetime(2025, 11, 10, 18, 20),
             location=loc_nanjing_museum,
-            estimated_cost=0,
+            estimated_cost=2.0,
             estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="新街口站",
-                    end_location="南京博物院",
-                    estimated_time="20m",
-                    estimated_cost=2.0
-                )
-            ]
-        ),
-        models.ItineraryItem(
-            item_type="Transportation",
-            description="前往夫子庙",
-            start_time=datetime(2025, 11, 10, 18, 20),
-            end_time=datetime(2025, 11, 10, 19, 0),
-            location=loc_fuzimiao,
-            estimated_cost=3.0,
-            estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="南京博物院",
-                    end_location="夫子庙秦淮风光带",
-                    estimated_time="40m",
-                    estimated_cost=3.0
-                )
-            ]
         ),
         models.ItineraryItem(
             item_type="Activity",
@@ -176,85 +77,31 @@ def generate_plan_mock(query):
             start_time=datetime(2025, 11, 10, 19, 0),
             end_time=datetime(2025, 11, 10, 21, 0),
             location=loc_fuzimiao,
-            estimated_cost=180.0,
+            estimated_cost=183.0, # 180 + 3 transport
             estimated_cost_currency="CNY"
         ),
         models.ItineraryItem(
-            item_type="Transportation",
+            item_type="Hotel",
             description="返回酒店",
             start_time=datetime(2025, 11, 10, 21, 0),
             end_time=datetime(2025, 11, 10, 21, 30),
             location=loc_xinjiekou_station,
             estimated_cost=3.0,
             estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="夫子庙秦淮风光带",
-                    end_location="新街口站",
-                    estimated_time="30m",
-                    estimated_cost=3.0
-                )
-            ]
-        )
+        ),
     ]
     day1 = models.Day(date=datetime(2025, 11, 10).date(), items=day1_items)
 
     # Day 2
     day2_items = [
         models.ItineraryItem(
-            item_type="Transportation",
-            description="前往纪念馆",
-            start_time=datetime(2025, 11, 11, 8, 30),
-            end_time=datetime(2025, 11, 11, 9, 0),
-            location=loc_memorial_hall,
-            estimated_cost=3.0,
-            estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="新街口站",
-                    end_location="侵华日军南京大屠杀遇难同胞纪念馆",
-                    estimated_time="30m",
-                    estimated_cost=3.0
-                )
-            ]
-        ),
-        models.ItineraryItem(
             item_type="Activity",
-            description="参观纪念馆",
+            description="参观侵华日军南京大屠杀遇难同胞纪念馆",
             start_time=datetime(2025, 11, 11, 9, 0),
             end_time=datetime(2025, 11, 11, 11, 30),
             location=loc_memorial_hall,
-            estimated_cost=0,
+            estimated_cost=3.0,
             estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Meal",
-            description="午餐",
-            start_time=datetime(2025, 11, 11, 11, 30),
-            end_time=datetime(2025, 11, 11, 12, 30),
-            location=loc_memorial_hall, # Assuming lunch near memorial hall
-            estimated_cost=40.0,
-            estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Transportation",
-            description="前往总统府",
-            start_time=datetime(2025, 11, 11, 12, 30),
-            end_time=datetime(2025, 11, 11, 13, 0),
-            location=loc_presidential_palace,
-            estimated_cost=2.0,
-            estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="侵华日军南京大屠杀遇难同胞纪念馆",
-                    end_location="总统府",
-                    estimated_time="30m",
-                    estimated_cost=2.0
-                )
-            ]
         ),
         models.ItineraryItem(
             item_type="Activity",
@@ -262,26 +109,8 @@ def generate_plan_mock(query):
             start_time=datetime(2025, 11, 11, 13, 0),
             end_time=datetime(2025, 11, 11, 15, 0),
             location=loc_presidential_palace,
-            estimated_cost=35.0,
+            estimated_cost=37.0, # 35 ticket + 2 transport
             estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Transportation",
-            description="前往古鸡鸣寺",
-            start_time=datetime(2025, 11, 11, 15, 0),
-            end_time=datetime(2025, 11, 11, 15, 20),
-            location=loc_jiming_temple,
-            estimated_cost=2.0,
-            estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="总统府",
-                    end_location="古鸡鸣寺",
-                    estimated_time="20m",
-                    estimated_cost=2.0
-                )
-            ]
         ),
         models.ItineraryItem(
             item_type="Activity",
@@ -289,7 +118,7 @@ def generate_plan_mock(query):
             start_time=datetime(2025, 11, 11, 15, 20),
             end_time=datetime(2025, 11, 11, 17, 0),
             location=loc_taicheng,
-            estimated_cost=40.0,
+            estimated_cost=42.0, # 40 ticket + 2 transport
             estimated_cost_currency="CNY"
         ),
         models.ItineraryItem(
@@ -309,33 +138,15 @@ def generate_plan_mock(query):
             location=loc_xinjiekou_station,
             estimated_cost=52.0,
             estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="玄武湖公园",
-                    end_location="新街口站",
-                    estimated_time="30m",
-                    estimated_cost=2.0
-                )
-            ]
         ),
         models.ItineraryItem(
             item_type="Transportation",
-            description="前往南京南站",
+            description="前往南京南站准备返程",
             start_time=datetime(2025, 11, 11, 19, 30),
             end_time=datetime(2025, 11, 11, 20, 0),
             location=loc_nanjing_south_station,
             estimated_cost=4.0,
             estimated_cost_currency="CNY",
-            transportations=[
-                models.Transportation(
-                    transport_type="Public Transport",
-                    start_location="新街口站",
-                    end_location="南京南站",
-                    estimated_time="30m",
-                    estimated_cost=4.0
-                )
-            ]
         )
     ]
     day2 = models.Day(date=datetime(2025, 11, 11).date(), items=day2_items)
@@ -486,16 +297,6 @@ def save_plan_route():
                     currency=cost_data['currency']
                 ))
 
-            transportations = []
-            for trans_data in item_data.get('transportations', []):
-                transportations.append(models.Transportation(
-                    transport_type=trans_data['transport_type'],
-                    start_location=trans_data['start_location'],
-                    end_location=trans_data['end_location'],
-                    estimated_time=trans_data['estimated_time'],
-                    estimated_cost=trans_data['estimated_cost']
-                ))
-
             items.append(models.ItineraryItem(
                 item_type=item_data['item_type'],
                 description=item_data['description'],
@@ -504,8 +305,7 @@ def save_plan_route():
                 location=location,
                 estimated_cost=item_data.get('estimated_cost', 0.0),
                 estimated_cost_currency=item_data.get('estimated_cost_currency', 'USD'),
-                actual_costs=actual_costs,
-                transportations=transportations
+                actual_costs=actual_costs
             ))
         days.append(models.Day(date=datetime.fromisoformat(day_data['date']).date(), items=items))
 
@@ -551,19 +351,7 @@ def delete_actual_cost_route(cost_id):
     models.delete_actual_cost(cost_id)
     return jsonify({'success': True})
 
-@app.route('/transportation/<transportation_id>/update', methods=['POST'])
-@login_required
-def update_transportation_route(transportation_id):
-    updated_data = request.json
-    updated_data.pop('plan_id', None) # Remove plan_id as it's not in the transportations table
 
-    if 'estimated_cost' in updated_data:
-        updated_data['estimated_cost'] = float(updated_data['estimated_cost'])
-
-    models.update_transportation(transportation_id, updated_data)
-    
-    transportation = models.get_transportation(transportation_id)
-    return jsonify({'success': True, 'transportation': transportation.to_dict()})
 
 @app.route('/logout')
 def logout():

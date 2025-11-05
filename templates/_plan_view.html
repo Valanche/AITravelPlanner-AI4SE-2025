@@ -12,9 +12,25 @@
                             <small>Start: {{ item.start_time.strftime('%H:%M') if item.start_time else 'N/A' }}</small>
                             <small>End: {{ item.end_time.strftime('%H:%M') if item.end_time else 'N/A' }}</small>
                             <p class="mb-1">Estimated Cost: {{ "%.2f"|format(item.estimated_cost) }} {{ item.estimated_cost_currency }}</p>
-                            {% if item.location %}
-                                <p class="mb-1">Location: {{ item.location.name }}</p>
-                            {% endif %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                {% if item.location %}
+                                    <p class="mb-1">Location: {{ item.location.name }}</p>
+                                {% endif %}
+                                <div class="navigation-controls">
+                                    <button type="button" class="btn btn-info btn-sm navigate-btn" 
+                                            id="navigate-btn-{{ item.id }}"
+                                            onclick="event.stopPropagation(); showTransportSelect('{{ item.id }}', '{{ loop.previtem.location.name if loop.previtem and loop.previtem.location else '' }}', '{{ item.location.name if item.location else '' }}')">
+                                        Navigate
+                                    </button>
+                                    <select class="form-select form-select-sm transport-select" id="transport-select-{{ item.id }}" style="display: none;" onchange="navigateWithSelectedType('{{ item.id }}')">
+                                        <option selected disabled>Choose...</option>
+                                        <option value="Driving">Driving</option>
+                                        <option value="Walking">Walking</option>
+                                        <option value="Cycling">Cycling</option>
+                                        <option value="Public Transport">Public Transport</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                         {% if is_details_view %}
                         <div id="actual-costs-{{ item.id }}" class="list-group-item mb-2 ms-4" style="display: none;" onclick="event.stopPropagation();">
@@ -48,55 +64,6 @@
                             </form>
                         </div>
                         {% endif %}
-                        {% if item.transportations %}
-                            <div class="list-group-item mb-2 ms-4">
-                                <h6 class="mt-2">Transportations:</h6>
-                                <ul class="list-unstyled">
-                                    {% for transportation in item.transportations %}
-                                        <li id="display-transportation-{{ transportation.id }}">
-                                            {{ transportation.transport_type }}: {{ transportation.start_location }} to {{ transportation.end_location }}
-                                            ({{ transportation.estimated_time }}, {{ "%.2f"|format(transportation.estimated_cost) }} {{ item.estimated_cost_currency }})
-                                            <div class="d-flex justify-content-end mt-2">
-                                                <button type="button" class="btn btn-info btn-sm me-2" onclick="event.stopPropagation(); planRoute('{{ transportation.transport_type }}', '{{ transportation.start_location }}', '{{ transportation.end_location }}')">Navigate</button>
-                                                <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); toggleEdit('{{ transportation.id }}')">Edit</button>
-                                            </div>
-                                        </li>
-                                        <li id="edit-transportation-{{ transportation.id }}" style="display: none;">
-                                            <form id="edit-transportation-form-{{ transportation.id }}">
-                                                <input type="hidden" name="plan_id" value="{{ plan.id }}">
-                                                <div class="mb-2">
-                                                    <label>Transport Type</label>
-                                                    <select name="transport_type" class="form-control">
-                                                        <option value="Walking" {% if transportation.transport_type == 'Walking' %}selected{% endif %}>Walking</option>
-                                                        <option value="Cycling" {% if transportation.transport_type == 'Cycling' %}selected{% endif %}>Cycling</option>
-                                                        <option value="Public Transport" {% if transportation.transport_type == 'Public Transport' %}selected{% endif %}>Public Transport</option>
-                                                        <option value="Driving" {% if transportation.transport_type == 'Driving' %}selected{% endif %}>Driving</option>
-                                                    </select>
-                                                </div>
-                                                <div class="mb-2">
-                                                    <label>Start Location</label>
-                                                    <input type="text" name="start_location" class="form-control" value="{{ transportation.start_location }}">
-                                                </div>
-                                                <div class="mb-2">
-                                                    <label>End Location</label>
-                                                    <input type="text" name="end_location" class="form-control" value="{{ transportation.end_location }}">
-                                                </div>
-                                                <div class="mb-2">
-                                                    <label>Estimated Time</label>
-                                                    <input type="text" name="estimated_time" class="form-control" value="{{ transportation.estimated_time }}">
-                                                </div>
-                                                <div class="mb-2">
-                                                    <label>Estimated Cost</label>
-                                                    <input type="number" name="estimated_cost" class="form-control" value="{{ transportation.estimated_cost }}" step="0.01">
-                                                </div>
-                                                <button type="button" class="btn btn-primary btn-sm" onclick="saveTransportation('{{ transportation.id }}')">Save</button>
-                                                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEdit('{{ transportation.id }}')">Cancel</button>
-                                            </form>
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        {% endif %}
                     {% endfor %}
                 </div>
             {% endfor %}
@@ -116,6 +83,7 @@
     </div>
 </div>
 
+{% block scripts %}
 <script>
 function toggleActualCosts(itemId) {
     var x = document.getElementById("actual-costs-" + itemId);
@@ -125,19 +93,6 @@ function toggleActualCosts(itemId) {
         } else {
             x.style.display = "none";
         }
-    }
-}
-
-function toggleEdit(transportationId) {
-    var displayView = document.getElementById("display-transportation-" + transportationId);
-    var editView = document.getElementById("edit-transportation-" + transportationId);
-
-    if (displayView.style.display === "none") {
-        displayView.style.display = "block";
-        editView.style.display = "none";
-    } else {
-        displayView.style.display = "none";
-        editView.style.display = "block";
     }
 }
 
@@ -193,33 +148,35 @@ function addActualCost(itemId) {
     });
 }
 
-function saveTransportation(transportationId) {
-    const form = document.getElementById(`edit-transportation-form-${transportationId}`);
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
+const currentNavigation = {};
 
-    fetch(`/transportation/${transportationId}/update`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const displayView = document.getElementById(`display-transportation-${transportationId}`);
-            displayView.innerHTML = `
-                ${data.transportation.transport_type}: ${data.transportation.start_location} to ${data.transportation.end_location}
-                (${data.transportation.estimated_time}, ${data.transportation.estimated_cost.toFixed(2)} USD)
-                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEdit('${transportationId}')">Edit</button>
-            `;
-            toggleEdit(transportationId);
-        } else {
-            alert('Failed to update transportation.');
-        }
-    });
+function showTransportSelect(itemId, startLocation, endLocation) {
+    if (!startLocation) {
+        alert("This is the first stop of the day and cannot be navigated from.");
+        return;
+    }
+
+    currentNavigation[itemId] = { start: startLocation, end: endLocation };
+
+    document.getElementById(`navigate-btn-${itemId}`).style.display = 'none';
+    document.getElementById(`transport-select-${itemId}`).style.display = 'block';
 }
+
+function navigateWithSelectedType(itemId) {
+    const selectElement = document.getElementById(`transport-select-${itemId}`);
+    const transportType = selectElement.value;
+    const navInfo = currentNavigation[itemId];
+
+    if (transportType && navInfo) {
+        planRoute(transportType, navInfo.start, navInfo.end);
+    }
+
+    // Reset UI
+    selectElement.style.display = 'none';
+    selectElement.selectedIndex = 0; // Reset to the "Choose..." option
+    document.getElementById(`navigate-btn-${itemId}`).style.display = 'block';
+}
+
 </script>
 
 <!-- Map Scripts -->
@@ -303,5 +260,6 @@ function saveTransportation(transportationId) {
         }
     }
 </script>
+{% endblock %}
 
 
