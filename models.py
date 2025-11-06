@@ -142,15 +142,18 @@ def create_plan(plan):
         for i, item in enumerate(day.items):
             item.day_id = day.id
             
-            # Create location if it exists
-            if item.location and item.location.id not in inserted_location_ids:
+            # Always set the location_id on the item if a location exists
+            if item.location:
                 item.location_id = item.location.id
-                supabase.table('locations').insert({
-                    'id': item.location.id,
-                    'name': item.location.name,
-                    'city': item.location.city
-                }).execute()
-                inserted_location_ids.add(item.location.id)
+
+                # But only insert the location into the DB if it's the first time we've seen it
+                if item.location.id not in inserted_location_ids:
+                    supabase.table('locations').insert({
+                        'id': item.location.id,
+                        'name': item.location.name,
+                        'city': item.location.city
+                    }).execute()
+                    inserted_location_ids.add(item.location.id)
 
             item_insert = {
                 'id': item.id,

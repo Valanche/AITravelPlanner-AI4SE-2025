@@ -10,6 +10,7 @@ from datetime import datetime
 
 from stt_service import STTService
 import models
+import llm_service
 
 load_dotenv()
 
@@ -17,149 +18,46 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# --- Mock AI Service ---
-def generate_plan_mock(query):
-    """Mocks a call to an AI service to generate a travel plan for Nanjing."""
-    # Locations for the Nanjing Plan
-    loc_nanjing_south_station = models.Location(name="南京南站", city="南京")
-    loc_xinjiekou_station = models.Location(name="新街口站", city="南京")
-    loc_ming_xiaoling = models.Location(name="明孝陵", city="南京")
-    loc_meiling_palace = models.Location(name="美龄宫", city="南京")
-    loc_nanjing_museum = models.Location(name="南京博物院", city="南京")
-    loc_fuzimiao = models.Location(name="夫子庙秦淮风光带", city="南京")
-    loc_memorial_hall = models.Location(name="侵华日军南京大屠杀遇难同胞纪念馆", city="南京")
-    loc_presidential_palace = models.Location(name="总统府", city="南京")
-    loc_jiming_temple = models.Location(name="古鸡鸣寺", city="南京")
-    loc_taicheng = models.Location(name="台城", city="南京")
-    loc_xuanwu_lake = models.Location(name="玄武湖公园", city="南京")
+def _create_plan_object_from_dict(plan_data: dict) -> models.TravelPlan:
+    """Converts a dictionary (from LLM) to a TravelPlan object."""
+    days = []
+    location_map = {}
+    for day_data in plan_data.get('days', []):
+        items = []
+        for item_data in day_data.get('items', []):
+            location = None
+            if item_data.get('location'):
+                loc_data = item_data['location']
+                # Use a tuple of (name, city) as a key to uniquely identify locations
+                loc_key = (loc_data.get('name'), loc_data.get('city'))
+                if loc_key in location_map:
+                    location = location_map[loc_key]
+                else:
+                    location = models.Location(name=loc_data.get('name'), city=loc_data.get('city'))
+                    location_map[loc_key] = location
+            
+            start_time = datetime.fromisoformat(item_data['start_time']) if item_data.get('start_time') else None
+            end_time = datetime.fromisoformat(item_data['end_time']) if item_data.get('end_time') else None
 
-    # Day 1
-    day1_items = [
-        models.ItineraryItem(
-            item_type="Hotel",
-            description="抵达酒店：从南京南站乘坐地铁1号线至新街口站",
-            start_time=datetime(2025, 11, 10, 10, 0),
-            end_time=datetime(2025, 11, 10, 11, 0),
-            location=loc_xinjiekou_station,
-            estimated_cost=4.0,
-            estimated_cost_currency="CNY",
-        ),
-        models.ItineraryItem(
-            item_type="Activity",
-            description="游览明孝陵",
-            start_time=datetime(2025, 11, 10, 11, 40),
-            end_time=datetime(2025, 11, 10, 13, 0),
-            location=loc_ming_xiaoling,
-            estimated_cost=73.0,
-            estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Activity",
-            description="参观美龄宫",
-            start_time=datetime(2025, 11, 10, 13, 20),
-            end_time=datetime(2025, 11, 10, 14, 10),
-            location=loc_meiling_palace,
-            estimated_cost=40.0, # 30 ticket + 10 transport
-            estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Activity",
-            description="参观南京博物院",
-            start_time=datetime(2025, 11, 10, 14, 50),
-            end_time=datetime(2025, 11, 10, 18, 20),
-            location=loc_nanjing_museum,
-            estimated_cost=2.0,
-            estimated_cost_currency="CNY",
-        ),
-        models.ItineraryItem(
-            item_type="Activity",
-            description="夫子庙夜游 & 晚餐",
-            start_time=datetime(2025, 11, 10, 19, 0),
-            end_time=datetime(2025, 11, 10, 21, 0),
-            location=loc_fuzimiao,
-            estimated_cost=183.0, # 180 + 3 transport
-            estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Hotel",
-            description="返回酒店",
-            start_time=datetime(2025, 11, 10, 21, 0),
-            end_time=datetime(2025, 11, 10, 21, 30),
-            location=loc_xinjiekou_station,
-            estimated_cost=3.0,
-            estimated_cost_currency="CNY",
-        ),
-    ]
-    day1 = models.Day(date=datetime(2025, 11, 10).date(), items=day1_items)
+            items.append(models.ItineraryItem(
+                item_type=item_data.get('item_type'),
+                description=item_data.get('description'),
+                start_time=start_time,
+                end_time=end_time,
+                location=location,
+                estimated_cost=item_data.get('estimated_cost', 0.0),
+                estimated_cost_currency=item_data.get('estimated_cost_currency', 'USD'),
+                actual_costs=[] # Actual costs are added by the user later
+            ))
+        days.append(models.Day(date=datetime.fromisoformat(day_data['date']).date(), items=items))
 
-    # Day 2
-    day2_items = [
-        models.ItineraryItem(
-            item_type="Activity",
-            description="参观侵华日军南京大屠杀遇难同胞纪念馆",
-            start_time=datetime(2025, 11, 11, 9, 0),
-            end_time=datetime(2025, 11, 11, 11, 30),
-            location=loc_memorial_hall,
-            estimated_cost=3.0,
-            estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Activity",
-            description="参观总统府",
-            start_time=datetime(2025, 11, 11, 13, 0),
-            end_time=datetime(2025, 11, 11, 15, 0),
-            location=loc_presidential_palace,
-            estimated_cost=37.0, # 35 ticket + 2 transport
-            estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Activity",
-            description="游览古鸡鸣寺与台城",
-            start_time=datetime(2025, 11, 11, 15, 20),
-            end_time=datetime(2025, 11, 11, 17, 0),
-            location=loc_taicheng,
-            estimated_cost=42.0, # 40 ticket + 2 transport
-            estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Activity",
-            description="玄武湖黄昏漫步",
-            start_time=datetime(2025, 11, 11, 17, 0),
-            end_time=datetime(2025, 11, 11, 18, 30),
-            location=loc_xuanwu_lake,
-            estimated_cost=0,
-            estimated_cost_currency="CNY"
-        ),
-        models.ItineraryItem(
-            item_type="Meal",
-            description="晚餐 & 返回酒店取行李",
-            start_time=datetime(2025, 11, 11, 18, 30),
-            end_time=datetime(2025, 11, 11, 19, 30),
-            location=loc_xinjiekou_station,
-            estimated_cost=52.0,
-            estimated_cost_currency="CNY",
-        ),
-        models.ItineraryItem(
-            item_type="Transportation",
-            description="前往南京南站准备返程",
-            start_time=datetime(2025, 11, 11, 19, 30),
-            end_time=datetime(2025, 11, 11, 20, 0),
-            location=loc_nanjing_south_station,
-            estimated_cost=4.0,
-            estimated_cost_currency="CNY",
-        )
-    ]
-    day2 = models.Day(date=datetime(2025, 11, 11).date(), items=day2_items)
-
-    # Create the travel plan
     plan = models.TravelPlan(
-        user_id="mock_user",
-        title=f"南京两日游：钟山风华与秦淮月夜",
-        description="一份详细的南京两日游路线计划，从南京南站出发，涵盖历史与现代景观。",
-        days=[day1, day2]
+        user_id=session.get('user', {}).get('id'), # Get user_id from session
+        title=plan_data.get('title'),
+        description=plan_data.get('description'),
+        days=days
     )
     return plan
-
 
 # --- Flask Routes ---
 @app.context_processor
@@ -246,8 +144,15 @@ def generate_plan_route():
         flash("Please provide a query for your travel plan.", "danger")
         return redirect(url_for('index'))
 
-    # Generate the plan (mocked for now)
-    plan = generate_plan_mock(query)
+    # Generate the plan using the LLM service
+    plan_data = llm_service.generate_plan(query)
+
+    if not plan_data:
+        flash("Could not generate a plan based on your query. Please try again.", "danger")
+        return redirect(url_for('index'))
+
+    # Convert dictionary to TravelPlan object
+    plan = _create_plan_object_from_dict(plan_data)
 
     # Create location-city map for the frontend
     location_city_map = {}

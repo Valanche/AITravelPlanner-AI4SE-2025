@@ -2,3 +2,4 @@ Flask
 dotenv
 supabase
 baidu-aip
+openai

@@ -348,7 +348,7 @@ const currentNavigation = {};
 
 function showTransportSelect(itemId, startLocation, endLocation) {
     if (!startLocation) {
-        alert("This is the first stop of the day and cannot be navigated from.");
+        alert("缺少出发点，请检查上一个项目及其地点是否存在");
         return;
     }
 
@@ -467,5 +467,3 @@ function navigateWithSelectedType(itemId) {
     }
 </script>
 {% endblock %}
-
-

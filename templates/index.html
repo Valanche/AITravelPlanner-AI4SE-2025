@@ -16,7 +16,9 @@
                     <button onclick="recUpload()" type="button" class="btn btn-warning">Upload</button>
                     <span id="status-indicator" class="ms-3">Status: Idle</span>
                 </div>
-                <button type="submit" class="btn btn-success">Generate Plan</button>
+                <button type="submit" class="btn btn-success" id="generate-plan-btn">Generate Plan</button>
+                <span id="generate-plan-loading" class="spinner-border spinner-border-sm text-success" role="status" aria-hidden="true" style="display: none;"></span>
+                <span id="generate-plan-loading-text" class="ms-2 text-success" style="display: none;">生成中...</span>
             </div>
         </form>
     </div>
@@ -117,6 +119,56 @@
         });
     }
 
+    // Handle Generate Plan button click
+    const generatePlanBtn = document.getElementById('generate-plan-btn');
+    const generatePlanLoading = document.getElementById('generate-plan-loading');
+    const generatePlanLoadingText = document.getElementById('generate-plan-loading-text');
+    const planForm = document.getElementById('plan-form');
+
+    planForm.addEventListener('submit', function(event) {
+        event.preventDefault(); // Prevent default form submission
+
+        generatePlanBtn.disabled = true;
+        generatePlanBtn.textContent = '请稍候...'; // Change button text
+        generatePlanLoading.style.display = 'inline-block'; // Show spinner
+        generatePlanLoadingText.style.display = 'inline'; // Show loading text
+
+        const formData = new FormData(planForm);
+        
+        fetch(planForm.action, {
+            method: planForm.method,
+            body: formData
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url; // This handles the error case where a flash message is shown on the index page
+                return null; // Stop further processing
+            } else if (response.ok) {
+                return response.text(); // Get the HTML content of the new page
+            } else {
+                // If there's an error that doesn't redirect, reload to show flash messages
+                window.location.reload();
+                return null; // Stop further processing
+            }
+        })
+        .then(html => {
+            if (html) {
+                // Replace the current document's HTML with the new page's HTML
+                document.open();
+                document.write(html);
+                document.close();
+            }
+        })
+        .catch(error => {
+            console.error('Error generating plan:', error);
+            alert('生成计划失败: ' + error.message);
+            // Re-enable button and hide loading indicator on error
+            generatePlanBtn.disabled = false;
+            generatePlanBtn.textContent = 'Generate Plan'; // Restore original text
+            generatePlanLoading.style.display = 'none';
+            generatePlanLoadingText.style.display = 'none';
+        });
+    });
 
 </script>
 {% endblock %}
