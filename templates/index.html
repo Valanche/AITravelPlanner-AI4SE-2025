@@ -12,9 +12,11 @@
             
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <button id="record-toggle-btn" type="button" class="btn btn-primary">Start Recording</button>
-                    <button onclick="recUpload()" type="button" class="btn btn-warning">Upload</button>
-                    <span id="status-indicator" class="ms-3">Status: Idle</span>
+                    <button id="record-toggle-btn" type="button" class="btn btn-primary">开始录音</button>
+                    <button id="upload-btn" onclick="recUpload()" type="button" class="btn btn-warning">上传</button>
+                    <span id="upload-loading" class="spinner-border spinner-border-sm text-warning" role="status" aria-hidden="true" style="display: none;"></span>
+                    <span id="upload-loading-text" class="ms-2 text-warning" style="display: none;">上传中...</span>
+                    <span id="status-indicator" class="ms-3">状态：空闲</span>
                 </div>
                 <button type="submit" class="btn btn-success" id="generate-plan-btn">Generate Plan</button>
                 <span id="generate-plan-loading" class="spinner-border spinner-border-sm text-success" role="status" aria-hidden="true" style="display: none;"></span>
@@ -31,6 +33,9 @@
     var rec, recBlob;
     var isRecording = false;
     var recordToggleBtn = document.getElementById('record-toggle-btn');
+    var uploadBtn = document.getElementById('upload-btn');
+    var uploadLoading = document.getElementById('upload-loading');
+    var uploadLoadingText = document.getElementById('upload-loading-text');
 
     function recOpenAndStart() {
         rec = Recorder({
@@ -38,22 +43,22 @@
             sampleRate: 16000,
             bitRate: 16,
             onProcess: function (buffers, powerLevel, bufferDuration, bufferSampleRate) {
-                document.getElementById('status-indicator').innerText = 'Recording: ' + (bufferDuration / 1000).toFixed(2) + 's';
+                document.getElementById('status-indicator').innerText = '录音中: ' + (bufferDuration / 1000).toFixed(2) + 's';
             }
         });
 
         rec.open(function () {
-            document.getElementById('status-indicator').innerText = 'Recorder opened';
+            document.getElementById('status-indicator').innerText = '录音器已打开';
             rec.start();
             isRecording = true;
-            recordToggleBtn.innerText = 'Stop Recording';
+            recordToggleBtn.innerText = '停止录音';
             recordToggleBtn.classList.remove('btn-primary');
             recordToggleBtn.classList.add('btn-danger');
-            document.getElementById('status-indicator').innerText = 'Recording started';
+            document.getElementById('status-indicator').innerText = '开始录音';
         }, function (msg, isUserNotAllow) {
-            document.getElementById('status-indicator').innerText = 'Recorder failed to open: ' + msg;
+            document.getElementById('status-indicator').innerText = '录音器打开失败: ' + msg;
             isRecording = false;
-            recordToggleBtn.innerText = 'Start Recording';
+            recordToggleBtn.innerText = '开始录音';
             recordToggleBtn.classList.remove('btn-danger');
             recordToggleBtn.classList.add('btn-primary');
         });
@@ -63,16 +68,16 @@
         rec.stop(function (blob, duration) {
             recBlob = blob;
             isRecording = false;
-            recordToggleBtn.innerText = 'Start Recording';
+            recordToggleBtn.innerText = '开始录音';
             recordToggleBtn.classList.remove('btn-danger');
             recordToggleBtn.classList.add('btn-primary');
-            document.getElementById('status-indicator').innerText = 'Recording stopped';
+            document.getElementById('status-indicator').innerText = '录音已停止';
             rec.close(); // Close the microphone
             rec = null; // Clear the recorder instance
         }, function (msg) {
-            document.getElementById('status-indicator').innerText = 'Recording failed: ' + msg;
+            document.getElementById('status-indicator').innerText = '录音失败: ' + msg;
             isRecording = false;
-            recordToggleBtn.innerText = 'Start Recording';
+            recordToggleBtn.innerText = '开始录音';
             recordToggleBtn.classList.remove('btn-danger');
             recordToggleBtn.classList.add('btn-primary');
             rec.close(); // Close the microphone even on failure
@@ -90,9 +95,14 @@
 
     function recUpload() {
         if (!recBlob) {
-            document.getElementById('status-indicator').innerText = 'No recording to upload';
+            document.getElementById('status-indicator').innerText = '没有可上传的录音';
             return;
         }
+
+        uploadBtn.disabled = true;
+        uploadLoading.style.display = 'inline-block';
+        uploadLoadingText.style.display = 'inline';
+        document.getElementById('status-indicator').innerText = '上传中...';
 
         var formData = new FormData();
         formData.append('audio_file', recBlob, 'recording.pcm');
@@ -111,11 +121,16 @@
                 queryTextarea.value += ' '; // Add a space if there's existing text
             }
             queryTextarea.value += data.text;
-            document.getElementById('status-indicator').innerText = 'Upload successful';
+            document.getElementById('status-indicator').innerText = '上传成功';
         })
         .catch(error => {
             console.error('Upload Error:', error);
-            document.getElementById('status-indicator').innerText = 'Upload failed: ' + error.message;
+            document.getElementById('status-indicator').innerText = '上传失败: ' + error.message;
+        })
+        .finally(() => {
+            uploadBtn.disabled = false;
+            uploadLoading.style.display = 'none';
+            uploadLoadingText.style.display = 'none';
         });
     }
 
