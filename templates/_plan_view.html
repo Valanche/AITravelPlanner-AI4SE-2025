@@ -7,29 +7,32 @@
                 <h4 class="mt-4">{{ day.date.strftime('%Y-%m-%d') }}</h4>
                 <div class="list-group">
                     {% for item in day.items %}
-                        <div class="list-group-item mb-2" onclick="toggleActualCosts('{{ item.id }}')" style="cursor: pointer;">
+                        <div class="list-group-item mb-2" style="position: relative; padding-bottom: 50px;">
                             <h5 class="mb-1">{{ item.item_type }}: {{ item.description }}</h5>
                             <small>Start: {{ item.start_time.strftime('%H:%M') if item.start_time else 'N/A' }}</small>
                             <small>End: {{ item.end_time.strftime('%H:%M') if item.end_time else 'N/A' }}</small>
                             <p class="mb-1">Estimated Cost: {{ "%.2f"|format(item.estimated_cost) }} {{ item.estimated_cost_currency }}</p>
-                            <div class="d-flex justify-content-between align-items-center">
-                                {% if item.location %}
-                                    <p class="mb-1">Location: {{ item.location.name }}</p>
+                            {% if item.location %}
+                                <p class="mb-1">Location: {{ item.location.name }}</p>
+                            {% endif %}
+                            <div class="button-container" style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 5px;">
+                                {% if is_details_view %}
+                                <button type="button" class="btn btn-warning btn-sm" id="actual-costs-btn-{{ item.id }}" onclick="event.stopPropagation(); toggleActualCosts('{{ item.id }}')">
+                                    Actual Costs
+                                </button>
                                 {% endif %}
-                                <div class="navigation-controls">
-                                    <button type="button" class="btn btn-info btn-sm navigate-btn" 
-                                            id="navigate-btn-{{ item.id }}"
-                                            onclick="event.stopPropagation(); showTransportSelect('{{ item.id }}', '{{ loop.previtem.location.name if loop.previtem and loop.previtem.location else '' }}', '{{ item.location.name if item.location else '' }}')">
-                                        Navigate
-                                    </button>
-                                    <select class="form-select form-select-sm transport-select" id="transport-select-{{ item.id }}" style="display: none;" onchange="navigateWithSelectedType('{{ item.id }}')">
-                                        <option selected disabled>Choose...</option>
-                                        <option value="Driving">Driving</option>
-                                        <option value="Walking">Walking</option>
-                                        <option value="Cycling">Cycling</option>
-                                        <option value="Public Transport">Public Transport</option>
-                                    </select>
-                                </div>
+                                <button type="button" class="btn btn-info btn-sm navigate-btn" 
+                                        id="navigate-btn-{{ item.id }}"
+                                        onclick="event.stopPropagation(); showTransportSelect('{{ item.id }}', '{{ loop.previtem.location.name if loop.previtem and loop.previtem.location else '' }}', '{{ item.location.name if item.location else '' }}')">
+                                    Navigate
+                                </button>
+                                <select class="form-select form-select-sm transport-select" id="transport-select-{{ item.id }}" style="display: none;" onchange="navigateWithSelectedType('{{ item.id }}')">
+                                    <option selected disabled>Choose...</option>
+                                    <option value="Driving">Driving</option>
+                                    <option value="Walking">Walking</option>
+                                    <option value="Cycling">Cycling</option>
+                                    <option value="Public Transport">Public Transport</option>
+                                </select>
                             </div>
                         </div>
                         {% if is_details_view %}
@@ -160,6 +163,11 @@ function showTransportSelect(itemId, startLocation, endLocation) {
 
     document.getElementById(`navigate-btn-${itemId}`).style.display = 'none';
     document.getElementById(`transport-select-${itemId}`).style.display = 'block';
+
+    const actualCostsBtn = document.getElementById(`actual-costs-btn-${itemId}`);
+    if (actualCostsBtn) {
+        actualCostsBtn.style.display = 'none';
+    }
 }
 
 function navigateWithSelectedType(itemId) {
@@ -175,6 +183,11 @@ function navigateWithSelectedType(itemId) {
     selectElement.style.display = 'none';
     selectElement.selectedIndex = 0; // Reset to the "Choose..." option
     document.getElementById(`navigate-btn-${itemId}`).style.display = 'block';
+
+    const actualCostsBtn = document.getElementById(`actual-costs-btn-${itemId}`);
+    if (actualCostsBtn) {
+        actualCostsBtn.style.display = 'block';
+    }
 }
 
 </script>
