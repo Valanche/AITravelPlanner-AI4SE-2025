@@ -352,6 +352,45 @@ def delete_actual_cost_route(cost_id):
     return jsonify({'success': True})
 
 
+@app.route('/itinerary-item/<item_id>/update', methods=['POST'])
+@login_required
+def update_itinerary_item_route(item_id):
+    try:
+        updates = request.json
+        updated_item = models.update_itinerary_item(item_id, updates)
+        return jsonify({'success': True, 'item': updated_item})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/itinerary-item/<item_id>/delete', methods=['POST'])
+@login_required
+def delete_itinerary_item_route(item_id):
+    try:
+        models.delete_itinerary_item(item_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/day/<day_id>/insert-and-reorder', methods=['POST'])
+@login_required
+def insert_and_reorder_route(day_id):
+    try:
+        data = request.json
+        new_item_data = data.get('new_item_data')
+        items_to_update = data.get('items_to_update')
+
+        if new_item_data:
+            models.insert_itinerary_item(day_id, new_item_data)
+
+        if items_to_update:
+            for item_update in items_to_update:
+                models.update_itinerary_item(item_update['id'], {'order': item_update['order']})
+
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 
 @app.route('/logout')
 def logout():

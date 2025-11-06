@@ -5,18 +5,24 @@
             {% set total_estimated_cost = namespace(value=0) %}
             {% for day in plan.days %}
                 <h4 class="mt-4">{{ day.date.strftime('%Y-%m-%d') }}</h4>
-                <div class="list-group">
+                <div class="list-group" id="day-{{ day.id }}">
                     {% for item in day.items %}
-                        <div class="list-group-item mb-2" style="position: relative; padding-bottom: 50px;">
+                        <div class="list-group-item mb-2" style="position: relative; padding-bottom: 50px;" id="item-{{ item.id }}">
                             <h5 class="mb-1">{{ item.item_type }}: {{ item.description }}</h5>
                             <small>Start: {{ item.start_time.strftime('%H:%M') if item.start_time else 'N/A' }}</small>
                             <small>End: {{ item.end_time.strftime('%H:%M') if item.end_time else 'N/A' }}</small>
                             <p class="mb-1">Estimated Cost: {{ "%.2f"|format(item.estimated_cost) }} {{ item.estimated_cost_currency }}</p>
                             {% if item.location %}
-                                <p class="mb-1">Location: {{ item.location.name }}</p>
+                                <p class="mb-1">Location: {% if item.location.city %}{{ item.location.city }}, {% endif %}{{ item.location.name }}</p>
                             {% endif %}
                             <div class="button-container" style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 5px;">
                                 {% if is_details_view %}
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="openEditModal('{{ item.id }}', '{{ item.description }}', '{{ item.start_time.isoformat() if item.start_time else '' }}', '{{ item.end_time.isoformat() if item.end_time else '' }}', '{{ item.location.name if item.location else '' }}', '{{ item.location.city if item.location else '' }}', '{{ item.estimated_cost }}', '{{ item.estimated_cost_currency }}', '{{ item.item_type }}')">
+                                    Edit
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm" onclick="deleteItem('{{ item.id }}')">
+                                    Delete
+                                </button>
                                 <button type="button" class="btn btn-warning btn-sm" id="actual-costs-btn-{{ item.id }}" onclick="event.stopPropagation(); toggleActualCosts('{{ item.id }}')">
                                     Actual Costs
                                 </button>
@@ -36,6 +42,9 @@
                             </div>
                         </div>
                         {% if is_details_view %}
+                        <div class="text-center my-2">
+                            <button class="btn btn-sm btn-success" onclick="openInsertModal('{{ day.id }}', {{ item.order }})">+</button>
+                        </div>
                         <div id="actual-costs-{{ item.id }}" class="list-group-item mb-2 ms-4" style="display: none;" onclick="event.stopPropagation();">
                             <p class="mb-1 mt-2">Actual Costs:</p>
                             <ul>
@@ -86,8 +95,181 @@
     </div>
 </div>
 
+<!-- Modal for Edit/Insert -->
+<div class="modal fade" id="itemModal" tabindex="-1" aria-labelledby="itemModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="itemModalLabel">Edit Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="itemForm">
+                    <input type="hidden" id="modalItemId" name="itemId">
+                    <input type="hidden" id="modalDayId" name="dayId">
+                    <input type="hidden" id="modalAfterItemOrder" name="afterItemOrder">
+                    <div class="mb-3">
+                        <label for="modalItemType" class="form-label">Type</label>
+                        <input type="text" class="form-control" id="modalItemType" name="item_type" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="modalDescription" name="description" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalStartTime" class="form-label">Start Time</label>
+                        <input type="datetime-local" class="form-control" id="modalStartTime" name="start_time">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalEndTime" class="form-label">End Time</label>
+                        <input type="datetime-local" class="form-control" id="modalEndTime" name="end_time">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalLocation" class="form-label">Location</label>
+                        <input type="text" class="form-control" id="modalLocation" name="location">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalCity" class="form-label">City</label>
+                        <input type="text" class="form-control" id="modalCity" name="city">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalEstimatedCost" class="form-label">Estimated Cost</label>
+                        <input type="number" class="form-control" id="modalEstimatedCost" name="estimated_cost" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalEstimatedCostCurrency" class="form-label">Currency</label>
+                        <input type="text" class="form-control" id="modalEstimatedCostCurrency" name="estimated_cost_currency">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="saveItem()">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% block scripts %}
 <script>
+let itemModal;
+document.addEventListener("DOMContentLoaded", function() {
+  itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
+});
+
+function openEditModal(itemId, description, startTime, endTime, location, city, estimatedCost, currency, itemType) {
+    document.getElementById('itemModalLabel').textContent = 'Edit Item';
+    document.getElementById('modalItemId').value = itemId;
+    document.getElementById('modalDayId').value = '';
+    document.getElementById('modalAfterItemOrder').value = '';
+    document.getElementById('modalDescription').value = description;
+    document.getElementById('modalStartTime').value = startTime ? new Date(startTime).toISOString().slice(0, 16) : '';
+    document.getElementById('modalEndTime').value = endTime ? new Date(endTime).toISOString().slice(0, 16) : '';
+    document.getElementById('modalLocation').value = location;
+    document.getElementById('modalCity').value = city;
+    document.getElementById('modalEstimatedCost').value = estimatedCost;
+    document.getElementById('modalEstimatedCostCurrency').value = currency;
+    document.getElementById('modalItemType').value = itemType;
+    itemModal.show();
+}
+
+function openInsertModal(dayId, afterItemOrder) {
+    document.getElementById('itemModalLabel').textContent = 'Insert New Item';
+    document.getElementById('itemForm').reset();
+    document.getElementById('modalDayId').value = dayId;
+    document.getElementById('modalAfterItemOrder').value = afterItemOrder;
+    document.getElementById('modalItemId').value = '';
+    itemModal.show();
+}
+
+function saveItem() {
+    const itemId = document.getElementById('modalItemId').value;
+    const dayId = document.getElementById('modalDayId').value;
+    const afterItemOrder = document.getElementById('modalAfterItemOrder').value;
+
+    const form = document.getElementById('itemForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    if (itemId) { // This is an update
+        const url = `/itinerary-item/${itemId}/update`;
+        const method = 'POST';
+        const body = JSON.stringify(data);
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: body
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                itemModal.hide();
+                location.reload();
+            } else {
+                alert('Failed to save item: ' + data.error);
+            }
+        });
+    } else { // This is an insert
+        const dayContainer = document.querySelector(`#day-${dayId}`);
+        const allItems = Array.from(dayContainer.querySelectorAll('div[id^="item-"]'));
+        
+        const newOrder = afterItemOrder ? parseInt(afterItemOrder) + 1 : 0;
+        data.order = newOrder;
+
+        const itemsToUpdate = [];
+        for (let i = newOrder; i < allItems.length; i++) {
+            const currentItem = allItems[i];
+            const currentItemId = currentItem.id.replace('item-', '');
+            itemsToUpdate.push({id: currentItemId, order: i + 1});
+        }
+
+        const url = `/day/${dayId}/insert-and-reorder`;
+        const method = 'POST';
+        const body = JSON.stringify({
+            new_item_data: data,
+            items_to_update: itemsToUpdate
+        });
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: body
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                itemModal.hide();
+                location.reload();
+            } else {
+                alert('Failed to save item: ' + data.error);
+            }
+        });
+    }
+}
+
+function deleteItem(itemId) {
+    if (!confirm('Are you sure you want to delete this item?')) {
+        return;
+    }
+
+    fetch(`/itinerary-item/${itemId}/delete`, {
+        method: 'POST',
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Failed to delete item: ' + data.error);
+        }
+    });
+}
+
 function toggleActualCosts(itemId) {
     var x = document.getElementById("actual-costs-" + itemId);
     if (x) { // Check if the element exists

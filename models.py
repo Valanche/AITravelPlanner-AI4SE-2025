@@ -56,7 +56,7 @@ class Day:
         }
 
 class ItineraryItem:
-    def __init__(self, item_type, description, start_time=None, end_time=None, location_id=None, location=None, estimated_cost=0.0, estimated_cost_currency='USD', actual_costs=None, id=None, day_id=None):
+    def __init__(self, item_type, description, start_time=None, end_time=None, location_id=None, location=None, estimated_cost=0.0, estimated_cost_currency='USD', actual_costs=None, id=None, day_id=None, order=0):
         self.id = id if id else str(uuid.uuid4())
         self.day_id = day_id
         self.item_type = item_type
@@ -68,6 +68,7 @@ class ItineraryItem:
         self.estimated_cost = estimated_cost
         self.estimated_cost_currency = estimated_cost_currency
         self.actual_costs = actual_costs if actual_costs else []
+        self.order = order
 
     def to_dict(self):
         return {
@@ -82,6 +83,7 @@ class ItineraryItem:
             "estimated_cost": self.estimated_cost,
             "estimated_cost_currency": self.estimated_cost_currency,
             "actual_costs": [cost.to_dict() for cost in self.actual_costs],
+            "order": self.order,
         }
 
 class Location:
@@ -137,7 +139,7 @@ def create_plan(plan):
         if not day_data.data:
             raise Exception("Failed to create day")
 
-        for item in day.items:
+        for i, item in enumerate(day.items):
             item.day_id = day.id
             
             # Create location if it exists
@@ -160,6 +162,7 @@ def create_plan(plan):
                 'location_id': item.location_id,
                 'estimated_cost': item.estimated_cost,
                 'estimated_cost_currency': item.estimated_cost_currency,
+                'order': i
             }
             
             item_data = supabase.table('itinerary_items').insert(item_insert).execute()
@@ -178,6 +181,87 @@ def create_plan(plan):
                 }).execute()
 
     return plan
+
+def update_itinerary_item(item_id, updates):
+    allowed_updates = {}
+    for key in ['item_type', 'description', 'start_time', 'end_time', 'estimated_cost', 'estimated_cost_currency', 'location', 'city', 'order']:
+        if key in updates:
+            allowed_updates[key] = updates[key]
+
+    # Handle location
+    if 'location' in allowed_updates:
+        location_name = allowed_updates.pop('location')
+        city_name = allowed_updates.pop('city', 'Unknown') # Get city, default to Unknown
+        if location_name:
+            # Check if location exists
+            location_data = supabase.table('locations').select('id').eq('name', location_name).eq('city', city_name).execute()
+            if location_data.data:
+                allowed_updates['location_id'] = location_data.data[0]['id']
+            else:
+                # Create new location
+                new_location_id = str(uuid.uuid4())
+                supabase.table('locations').insert({'id': new_location_id, 'name': location_name, 'city': city_name}).execute()
+                allowed_updates['location_id'] = new_location_id
+        else:
+            allowed_updates['location_id'] = None
+
+
+    # Convert datetime objects to ISO 8601 strings if they exist
+    if 'start_time' in allowed_updates and allowed_updates['start_time']:
+        allowed_updates['start_time'] = datetime.fromisoformat(allowed_updates['start_time']).isoformat()
+    if 'end_time' in allowed_updates and allowed_updates['end_time']:
+        allowed_updates['end_time'] = datetime.fromisoformat(allowed_updates['end_time']).isoformat()
+
+    response = supabase.table('itinerary_items').update(allowed_updates).eq('id', item_id).execute()
+    if not response.data:
+        raise Exception(f"Failed to update itinerary item with id {item_id}")
+    return response.data[0]
+
+def delete_itinerary_item(item_id):
+    supabase.table('itinerary_items').delete().eq('id', item_id).execute()
+
+def insert_itinerary_item(day_id, item_data):
+    # This function now assumes that the correct order is provided in item_data.
+    # The reordering logic is handled by the caller.
+
+    new_item_payload = {
+        'id': str(uuid.uuid4()),
+        'day_id': day_id,
+        'order': item_data.get('order'),
+        'item_type': item_data.get('item_type'),
+        'description': item_data.get('description'),
+        'start_time': item_data.get('start_time'),
+        'end_time': item_data.get('end_time'),
+        'estimated_cost': item_data.get('estimated_cost'),
+        'estimated_cost_currency': item_data.get('estimated_cost_currency'),
+    }
+
+    # Handle location
+    location_name = item_data.get('location')
+    city_name = item_data.get('city', 'Unknown')
+    if location_name:
+        # Check if location exists
+        location_data = supabase.table('locations').select('id').eq('name', location_name).eq('city', city_name).execute()
+        if location_data.data:
+            new_item_payload['location_id'] = location_data.data[0]['id']
+        else:
+            # Create new location
+            new_location_id = str(uuid.uuid4())
+            supabase.table('locations').insert({'id': new_location_id, 'name': location_name, 'city': city_name}).execute()
+            new_item_payload['location_id'] = new_location_id
+
+    # Convert datetime objects to ISO 8601 strings if they exist
+    if new_item_payload['start_time']:
+        new_item_payload['start_time'] = datetime.fromisoformat(new_item_payload['start_time']).isoformat()
+    if new_item_payload['end_time']:
+        new_item_payload['end_time'] = datetime.fromisoformat(new_item_payload['end_time']).isoformat()
+
+    new_item = supabase.table('itinerary_items').insert(new_item_payload).execute()
+
+    if not new_item.data:
+        raise Exception("Failed to insert new itinerary item")
+
+    return new_item.data[0]
 
 def get_plan(plan_id):
     plan_data = supabase.table('plans').select("*, days(*, itinerary_items(*, locations(*), actual_costs(*)))").eq('id', plan_id).single().execute()
@@ -263,8 +347,13 @@ def _dict_to_travel_plan(plan_dict):
                 location_id=item_dict.get('location_id'),
                 estimated_cost=item_dict.get('estimated_cost', 0.0),
                 estimated_cost_currency=item_dict.get('estimated_cost_currency', 'USD'),
-                actual_costs=actual_costs
+                actual_costs=actual_costs,
+                order=item_dict.get('order', 0)
             ))
+        
+        # Sort items by order
+        items.sort(key=lambda item: item.order)
+
         days.append(Day(
             id=day_dict['id'],
             plan_id=day_dict['plan_id'],
@@ -311,6 +400,7 @@ def _dict_to_travel_plan(plan_dict):
 #    - end_time: timestampz
 #    - estimated_cost: float8
 #    - estimated_cost_currency: text
+#    - order: int4
 #
 # 5. actual_costs:
 #    - id: uuid (Primary Key)
