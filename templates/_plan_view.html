@@ -8,10 +8,17 @@
     }
 </style>
 <div class="row d-flex">
-    <div class="col-md-4 itinerary-scrollable">
+    <div class="col-md-4">
         <h5>Itinerary</h5>
         {% if plan.days %}
             {% set total_estimated_cost = namespace(value=0) %}
+            {% for day in plan.days %}
+                {% for item in day.items %}
+                    {% set total_estimated_cost.value = total_estimated_cost.value + item.estimated_cost %}
+                {% endfor %}
+            {% endfor %}
+            <h4>Total Estimated Cost: {{ "%.2f"|format(total_estimated_cost.value) }}</h4>
+            <div class="itinerary-scrollable">
             {% for day in plan.days %}
                 <h4 class="mt-4">{{ day.date.strftime('%Y-%m-%d') }}</h4>
                 <div class="list-group" id="day-{{ day.id }}">
@@ -22,6 +29,7 @@
                                 <small>Start: {{ item.start_time.strftime('%H:%M') if item.start_time else 'N/A' }}</small>
                                 <small>End: {{ item.end_time.strftime('%H:%M') if item.end_time else 'N/A' }}</small>
                                 <p class="mb-1">Estimated Cost: {{ "%.2f"|format(item.estimated_cost) }}</p>
+                                {% set total_estimated_cost.value = total_estimated_cost.value + item.estimated_cost %}
                                 {% if item.location %}
                                     <p class="mb-1">Location: {% if item.location.city %}{{ item.location.city }}, {% endif %}{{ item.location.name }}</p>
                                 {% endif %}
@@ -87,8 +95,7 @@
                     {% endfor %}
                 </div>
             {% endfor %}
-            <hr>
-            <h4>Total Estimated Cost: {{ "%.2f"|format(total_estimated_cost.value) }}</h4>
+            </div>
         {% else %}
             <p>No itinerary items for this plan.</p>
         {% endif %}
