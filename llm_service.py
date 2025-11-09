@@ -6,7 +6,7 @@ from openai import OpenAI
 # It's recommended to set OPENAI_API_KEY and OPENAI_BASE_URL in your environment variables
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
-    base_url=os.environ.get("OPENAI_BASE_URL"),
+    base_url="https://api.deepseek.com",
 )
 
 def get_plan_prompt():
@@ -129,7 +129,7 @@ def generate_plan(query: str):
 
     try:
         response = client.chat.completions.create(
-            model=os.environ.get("OPENAI_MODEL", "deepseek-chat"),
+            model="deepseek-chat",
             messages=messages,
             response_format={'type': 'json_object'}
         )
