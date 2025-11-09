@@ -27,8 +27,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/gh/xiangyuecn/Recorder@latest/recorder.mp3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/xiangyuecn/Recorder@latest/src/engine/pcm.js"></script>
+<script src="{{ url_for('static', filename='js/recorder.mp3.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pcm.js') }}"></script>
 <script>
     var rec, recBlob;
     var isRecording = false;
