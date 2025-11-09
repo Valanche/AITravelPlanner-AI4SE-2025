@@ -21,13 +21,13 @@
                                 <h5 class="mb-1">{{ item.item_type }}: {{ item.description }}</h5>
                                 <small>Start: {{ item.start_time.strftime('%H:%M') if item.start_time else 'N/A' }}</small>
                                 <small>End: {{ item.end_time.strftime('%H:%M') if item.end_time else 'N/A' }}</small>
-                                <p class="mb-1">Estimated Cost: {{ "%.2f"|format(item.estimated_cost) }} {{ item.estimated_cost_currency }}</p>
+                                <p class="mb-1">Estimated Cost: {{ "%.2f"|format(item.estimated_cost) }}</p>
                                 {% if item.location %}
                                     <p class="mb-1">Location: {% if item.location.city %}{{ item.location.city }}, {% endif %}{{ item.location.name }}</p>
                                 {% endif %}
                                 <div class="button-container" style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 5px;">
                                     {% if is_details_view %}
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="openEditModal('{{ item.id }}', '{{ item.description }}', '{{ item.start_time.isoformat() if item.start_time else '' }}', '{{ item.end_time.isoformat() if item.end_time else '' }}', '{{ item.location.name if item.location else '' }}', '{{ item.location.city if item.location else '' }}', '{{ item.estimated_cost }}', '{{ item.estimated_cost_currency }}', '{{ item.item_type }}')">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="openEditModal('{{ item.id }}', '{{ item.description }}', '{{ item.start_time.isoformat() if item.start_time else '' }}', '{{ item.end_time.isoformat() if item.end_time else '' }}', '{{ item.location.name if item.location else '' }}', '{{ item.location.city if item.location else '' }}', '{{ item.estimated_cost }}', '{{ item.item_type }}')">
                                         Edit
                                     </button>
                                     <button type="button" class="btn btn-danger btn-sm" onclick="deleteItem('{{ item.id }}')">
@@ -57,7 +57,7 @@
                                 <ul>
                                     {% for cost in item.actual_costs %}
                                         <li class="d-flex justify-content-between align-items-center" id="cost-li-{{ cost.id }}">
-                                            {{ cost.name }}: {{ "%.2f"|format(cost.amount) }} {{ cost.currency }}
+                                            {{ cost.name }}: {{ "%.2f"|format(cost.amount) }}
                                             <button type="button" class="btn btn-danger btn-sm" onclick="deleteActualCost('{{ cost.id }}')">Delete</button>
                                         </li>
                                     {% endfor %}
@@ -72,9 +72,6 @@
                                         </div>
                                         <div class="col">
                                             <input type="number" name="amount" class="form-control" placeholder="Amount" required step="0.01">
-                                        </div>
-                                        <div class="col">
-                                            <input type="text" name="currency" class="form-control" placeholder="Currency" required>
                                         </div>
                                         <div class="col">
                                             <button type="button" class="btn btn-primary btn-sm" onclick="addActualCost('{{ item.id }}')">Add</button>
@@ -147,10 +144,6 @@
                         <label for="modalEstimatedCost" class="form-label">Estimated Cost</label>
                         <input type="number" class="form-control" id="modalEstimatedCost" name="estimated_cost" step="0.01">
                     </div>
-                    <div class="mb-3">
-                        <label for="modalEstimatedCostCurrency" class="form-label">Currency</label>
-                        <input type="text" class="form-control" id="modalEstimatedCostCurrency" name="estimated_cost_currency">
-                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -168,7 +161,7 @@ document.addEventListener("DOMContentLoaded", function() {
   itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
 });
 
-function openEditModal(itemId, description, startTime, endTime, location, city, estimatedCost, currency, itemType) {
+function openEditModal(itemId, description, startTime, endTime, location, city, estimatedCost, itemType) {
     document.getElementById('itemModalLabel').textContent = 'Edit Item';
     document.getElementById('modalItemId').value = itemId;
     document.getElementById('modalDayId').value = '';
@@ -179,7 +172,6 @@ function openEditModal(itemId, description, startTime, endTime, location, city, 
     document.getElementById('modalLocation').value = location;
     document.getElementById('modalCity').value = city;
     document.getElementById('modalEstimatedCost').value = estimatedCost;
-    document.getElementById('modalEstimatedCostCurrency').value = currency;
     document.getElementById('modalItemType').value = itemType;
     itemModal.show();
 }
@@ -333,7 +325,7 @@ function addActualCost(itemId) {
             li.className = 'd-flex justify-content-between align-items-center';
             li.id = `cost-li-${data.cost.id}`;
             li.innerHTML = `
-                ${data.cost.name}: ${data.cost.amount.toFixed(2)} ${data.cost.currency}
+                ${data.cost.name}: ${data.cost.amount.toFixed(2)}
                 <button type="button" class="btn btn-danger btn-sm" onclick="deleteActualCost('${data.cost.id}')">Delete</button>
             `;
             ul.appendChild(li);

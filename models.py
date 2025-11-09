@@ -56,7 +56,7 @@ class Day:
         }
 
 class ItineraryItem:
-    def __init__(self, item_type, description, start_time=None, end_time=None, location_id=None, location=None, estimated_cost=0.0, estimated_cost_currency='USD', actual_costs=None, id=None, day_id=None, order=0):
+    def __init__(self, item_type, description, start_time=None, end_time=None, location_id=None, location=None, estimated_cost=0.0, actual_costs=None, id=None, day_id=None, order=0):
         self.id = id if id else str(uuid.uuid4())
         self.day_id = day_id
         self.item_type = item_type
@@ -66,7 +66,6 @@ class ItineraryItem:
         self.location_id = location_id
         self.location = location
         self.estimated_cost = estimated_cost
-        self.estimated_cost_currency = estimated_cost_currency
         self.actual_costs = actual_costs if actual_costs else []
         self.order = order
 
@@ -81,7 +80,6 @@ class ItineraryItem:
             "location_id": self.location_id,
             "location": self.location.to_dict() if self.location else None,
             "estimated_cost": self.estimated_cost,
-            "estimated_cost_currency": self.estimated_cost_currency,
             "actual_costs": [cost.to_dict() for cost in self.actual_costs],
             "order": self.order,
         }
@@ -96,12 +94,11 @@ class Location:
         return {"id": self.id, "name": self.name, "city": self.city}
 
 class ActualCost:
-    def __init__(self, name, amount, currency, id=None, itinerary_item_id=None):
+    def __init__(self, name, amount, id=None, itinerary_item_id=None):
         self.id = id if id else str(uuid.uuid4())
         self.itinerary_item_id = itinerary_item_id
         self.name = name
         self.amount = amount
-        self.currency = currency
 
     def to_dict(self):
         return {
@@ -109,7 +106,6 @@ class ActualCost:
             "itinerary_item_id": self.itinerary_item_id,
             "name": self.name,
             "amount": self.amount,
-            "currency": self.currency,
         }
 
 # --- Database CRUD ---
@@ -164,7 +160,6 @@ def create_plan(plan):
                 'end_time': item.end_time.isoformat() if item.end_time else None,
                 'location_id': item.location_id,
                 'estimated_cost': item.estimated_cost,
-                'estimated_cost_currency': item.estimated_cost_currency,
                 'order': i
             }
             
@@ -179,15 +174,14 @@ def create_plan(plan):
                     'id': cost.id,
                     'itinerary_item_id': cost.itinerary_item_id,
                     'name': cost.name,
-                    'amount': cost.amount,
-                    'currency': cost.currency
+                    'amount': cost.amount
                 }).execute()
 
     return plan
 
 def update_itinerary_item(item_id, updates):
     allowed_updates = {}
-    for key in ['item_type', 'description', 'start_time', 'end_time', 'estimated_cost', 'estimated_cost_currency', 'location', 'city', 'order']:
+    for key in ['item_type', 'description', 'start_time', 'end_time', 'estimated_cost', 'location', 'city', 'order']:
         if key in updates:
             allowed_updates[key] = updates[key]
 
@@ -236,7 +230,6 @@ def insert_itinerary_item(day_id, item_data):
         'start_time': item_data.get('start_time'),
         'end_time': item_data.get('end_time'),
         'estimated_cost': item_data.get('estimated_cost'),
-        'estimated_cost_currency': item_data.get('estimated_cost_currency'),
     }
 
     # Handle location
@@ -301,8 +294,7 @@ def create_actual_cost(cost):
         id=data.data[0]['id'],
         itinerary_item_id=data.data[0]['itinerary_item_id'],
         name=data.data[0]['name'],
-        amount=data.data[0]['amount'],
-        currency=data.data[0]['currency']
+        amount=data.data[0]['amount']
     )
 
 def get_actual_cost(cost_id):
@@ -335,8 +327,7 @@ def _dict_to_travel_plan(plan_dict):
                     id=cost_dict['id'],
                     itinerary_item_id=cost_dict['itinerary_item_id'],
                     name=cost_dict['name'],
-                    amount=cost_dict['amount'],
-                    currency=cost_dict['currency']
+                    amount=cost_dict['amount']
                 ))
 
             items.append(ItineraryItem(
@@ -349,7 +340,6 @@ def _dict_to_travel_plan(plan_dict):
                 location=location,
                 location_id=item_dict.get('location_id'),
                 estimated_cost=item_dict.get('estimated_cost', 0.0),
-                estimated_cost_currency=item_dict.get('estimated_cost_currency', 'USD'),
                 actual_costs=actual_costs,
                 order=item_dict.get('order', 0)
             ))
@@ -402,7 +392,6 @@ def _dict_to_travel_plan(plan_dict):
 #    - start_time: timestampz
 #    - end_time: timestampz
 #    - estimated_cost: float8
-#    - estimated_cost_currency: text
 #    - order: int4
 #
 # 5. actual_costs:
@@ -410,7 +399,6 @@ def _dict_to_travel_plan(plan_dict):
 #    - itinerary_item_id: uuid (Foreign Key to itinerary_items.id, with cascading delete)
 #    - name: text
 #    - amount: float8
-#    - currency: text
 #
 # Make sure to enable Row Level Security (RLS) on these tables and create policies
 # that allow users to access only their own data.

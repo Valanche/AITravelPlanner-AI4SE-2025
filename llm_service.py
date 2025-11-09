@@ -36,7 +36,6 @@ def get_plan_prompt():
         *   `end_time` (string): 项目结束时间，格式为 `YYYY-MM-DDTHH:MM:SS`。
         *   `location` (object): 描述项目地点的 `Location` 对象。
         *   `estimated_cost` (float): 该项目的预估费用。
-        *   `estimated_cost_currency` (string): 费用所用的货币单位（例如, `"CNY"`）。
     *   `Location` (object): 描述一个地点。
         *   `name` (string): 地点的具体名称（例如, "夫子庙"），不能同时含两个地点。
         *   `city` (string): 地点所在的城市（例如, "南京"）。
@@ -64,8 +63,7 @@ def get_plan_prompt():
                 "name": "南京南站",
                 "city": "南京"
               },
-              "estimated_cost": 400.0,
-              "estimated_cost_currency": "CNY"
+              "estimated_cost": 400.0
             },
             {
               "item_type": "Hotel",
@@ -76,8 +74,7 @@ def get_plan_prompt():
                 "name": "新街口站",
                 "city": "南京"
               },
-              "estimated_cost": 4.0,
-              "estimated_cost_currency": "CNY"
+              "estimated_cost": 4.0
             },
             {
               "item_type": "Activity",
@@ -88,8 +85,7 @@ def get_plan_prompt():
                 "name": "明孝陵",
                 "city": "南京"
               },
-              "estimated_cost": 73.0,
-              "estimated_cost_currency": "CNY"
+              "estimated_cost": 73.0
             }
           ]
         },
@@ -105,8 +101,7 @@ def get_plan_prompt():
                 "name": "总统府",
                 "city": "南京"
               },
-              "estimated_cost": 37.0,
-              "estimated_cost_currency": "CNY"
+              "estimated_cost": 37.0
             }
           ]
         }

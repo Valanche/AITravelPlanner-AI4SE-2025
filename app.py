@@ -46,7 +46,6 @@ def _create_plan_object_from_dict(plan_data: dict) -> models.TravelPlan:
                 end_time=end_time,
                 location=location,
                 estimated_cost=item_data.get('estimated_cost', 0.0),
-                estimated_cost_currency=item_data.get('estimated_cost_currency', 'USD'),
                 actual_costs=[] # Actual costs are added by the user later
             ))
         days.append(models.Day(date=datetime.fromisoformat(day_data['date']).date(), items=items))
@@ -198,8 +197,7 @@ def save_plan_route():
             for cost_data in item_data.get('actual_costs', []):
                 actual_costs.append(models.ActualCost(
                     name=cost_data['name'],
-                    amount=cost_data['amount'],
-                    currency=cost_data['currency']
+                    amount=cost_data['amount']
                 ))
 
             items.append(models.ItineraryItem(
@@ -209,7 +207,6 @@ def save_plan_route():
                 end_time=end_time,
                 location=location,
                 estimated_cost=item_data.get('estimated_cost', 0.0),
-                estimated_cost_currency=item_data.get('estimated_cost_currency', 'USD'),
                 actual_costs=actual_costs
             ))
         days.append(models.Day(date=datetime.fromisoformat(day_data['date']).date(), items=items))
@@ -244,8 +241,7 @@ def create_actual_cost_route(item_id):
     cost = models.ActualCost(
         itinerary_item_id=item_id,
         name=data['name'],
-        amount=float(data['amount']),
-        currency=data['currency']
+        amount=float(data['amount'])
     )
     new_cost = models.create_actual_cost(cost)
     return jsonify({'success': True, 'cost': new_cost.to_dict()})
