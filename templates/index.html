@@ -1,29 +1,32 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <div class="container">
-        <h1 class="my-4">AI Travel Planner</h1>
-        <p>Describe your travel plans below using text or your voice.</p>
-        
-        <form id="plan-form" action="{{ url_for('generate_plan_route') }}" method="post">
-            <div class="mb-3">
-                <textarea class="form-control" id="query-text" name="query" rows="5" placeholder="e.g., 'I want to go to Japan for 5 days with a budget of 10,000 CNY...'" ></textarea>
+<div class="container">
+    <h1 class="my-4">AI 旅行规划</h1>
+    <p>请在下方使用文字或语音描述您的国内旅行计划，国外暂不支持。</p>
+
+    <form id="plan-form" action="{{ url_for('generate_plan_route') }}" method="post">
+        <div class="mb-3">
+            <textarea class="form-control" id="query-text" name="query" rows="5"
+                placeholder="例如：我十二月五日想去南京玩两天，预算三千元，喜欢美食和历史"></textarea>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <button id="record-toggle-btn" type="button" class="btn btn-primary">开始录音</button>
+                <button id="upload-btn" onclick="recUpload()" type="button" class="btn btn-warning">上传</button>
+                <span id="upload-loading" class="spinner-border spinner-border-sm text-warning" role="status"
+                    aria-hidden="true" style="display: none;"></span>
+                <span id="upload-loading-text" class="ms-2 text-warning" style="display: none;">上传中...</span>
+                <span id="status-indicator" class="ms-3">状态：空闲</span>
             </div>
-            
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <button id="record-toggle-btn" type="button" class="btn btn-primary">开始录音</button>
-                    <button id="upload-btn" onclick="recUpload()" type="button" class="btn btn-warning">上传</button>
-                    <span id="upload-loading" class="spinner-border spinner-border-sm text-warning" role="status" aria-hidden="true" style="display: none;"></span>
-                    <span id="upload-loading-text" class="ms-2 text-warning" style="display: none;">上传中...</span>
-                    <span id="status-indicator" class="ms-3">状态：空闲</span>
-                </div>
-                <button type="submit" class="btn btn-success" id="generate-plan-btn">Generate Plan</button>
-                <span id="generate-plan-loading" class="spinner-border spinner-border-sm text-success" role="status" aria-hidden="true" style="display: none;"></span>
-                <span id="generate-plan-loading-text" class="ms-2 text-success" style="display: none;">生成中...</span>
-            </div>
-        </form>
-    </div>
+            <button type="submit" class="btn btn-success" id="generate-plan-btn">生成计划</button>
+            <span id="generate-plan-loading" class="spinner-border spinner-border-sm text-success" role="status"
+                aria-hidden="true" style="display: none;"></span>
+            <span id="generate-plan-loading-text" class="ms-2 text-success" style="display: none;">生成中...</span>
+        </div>
+    </form>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -85,7 +88,7 @@
         });
     }
 
-    recordToggleBtn.addEventListener('click', function() {
+    recordToggleBtn.addEventListener('click', function () {
         if (isRecording) {
             recStopAndClose();
         } else {
@@ -111,27 +114,27 @@
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            var queryTextarea = document.getElementById('query-text');
-            if (queryTextarea.value) {
-                queryTextarea.value += ' '; // Add a space if there's existing text
-            }
-            queryTextarea.value += data.text;
-            document.getElementById('status-indicator').innerText = '上传成功';
-        })
-        .catch(error => {
-            console.error('Upload Error:', error);
-            document.getElementById('status-indicator').innerText = '上传失败: ' + error.message;
-        })
-        .finally(() => {
-            uploadBtn.disabled = false;
-            uploadLoading.style.display = 'none';
-            uploadLoadingText.style.display = 'none';
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                var queryTextarea = document.getElementById('query-text');
+                if (queryTextarea.value) {
+                    queryTextarea.value += ' '; // Add a space if there's existing text
+                }
+                queryTextarea.value += data.text;
+                document.getElementById('status-indicator').innerText = '上传成功';
+            })
+            .catch(error => {
+                console.error('Upload Error:', error);
+                document.getElementById('status-indicator').innerText = '上传失败: ' + error.message;
+            })
+            .finally(() => {
+                uploadBtn.disabled = false;
+                uploadLoading.style.display = 'none';
+                uploadLoadingText.style.display = 'none';
+            });
     }
 
     // Handle Generate Plan button click
@@ -140,7 +143,7 @@
     const generatePlanLoadingText = document.getElementById('generate-plan-loading-text');
     const planForm = document.getElementById('plan-form');
 
-    planForm.addEventListener('submit', function(event) {
+    planForm.addEventListener('submit', function (event) {
         event.preventDefault(); // Prevent default form submission
 
         generatePlanBtn.disabled = true;
@@ -149,40 +152,40 @@
         generatePlanLoadingText.style.display = 'inline'; // Show loading text
 
         const formData = new FormData(planForm);
-        
+
         fetch(planForm.action, {
             method: planForm.method,
             body: formData
         })
-        .then(response => {
-            if (response.redirected) {
-                window.location.href = response.url; // This handles the error case where a flash message is shown on the index page
-                return null; // Stop further processing
-            } else if (response.ok) {
-                return response.text(); // Get the HTML content of the new page
-            } else {
-                // If there's an error that doesn't redirect, reload to show flash messages
-                window.location.reload();
-                return null; // Stop further processing
-            }
-        })
-        .then(html => {
-            if (html) {
-                // Replace the current document's HTML with the new page's HTML
-                document.open();
-                document.write(html);
-                document.close();
-            }
-        })
-        .catch(error => {
-            console.error('Error generating plan:', error);
-            alert('生成计划失败: ' + error.message);
-            // Re-enable button and hide loading indicator on error
-            generatePlanBtn.disabled = false;
-            generatePlanBtn.textContent = 'Generate Plan'; // Restore original text
-            generatePlanLoading.style.display = 'none';
-            generatePlanLoadingText.style.display = 'none';
-        });
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url; // This handles the error case where a flash message is shown on the index page
+                    return null; // Stop further processing
+                } else if (response.ok) {
+                    return response.text(); // Get the HTML content of the new page
+                } else {
+                    // If there's an error that doesn't redirect, reload to show flash messages
+                    window.location.reload();
+                    return null; // Stop further processing
+                }
+            })
+            .then(html => {
+                if (html) {
+                    // Replace the current document's HTML with the new page's HTML
+                    document.open();
+                    document.write(html);
+                    document.close();
+                }
+            })
+            .catch(error => {
+                console.error('Error generating plan:', error);
+                alert('生成计划失败: ' + error.message);
+                // Re-enable button and hide loading indicator on error
+                generatePlanBtn.disabled = false;
+                generatePlanBtn.textContent = 'Generate Plan'; // Restore original text
+                generatePlanLoading.style.display = 'none';
+                generatePlanLoadingText.style.display = 'none';
+            });
     });
 
 </script>

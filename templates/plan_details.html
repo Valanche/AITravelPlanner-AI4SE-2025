@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Plan Details{% endblock %}
+{% block title %}计划详情{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
@@ -8,6 +8,6 @@
     <p>{{ plan.description }}</p>
     <hr>
     {% include '_plan_view.html' %}
-    <a href="{{ url_for('my_plans') }}" class="btn btn-secondary mt-3">Back to My Plans</a>
+    <a href="{{ url_for('my_plans') }}" class="btn btn-secondary mt-3">返回我的旅行</a>
 </div>
 {% endblock %}
