@@ -12,24 +12,33 @@
         <h5>Itinerary</h5>
         {% if plan.days %}
             {% set total_estimated_cost = namespace(value=0) %}
+            {% set total_actual_cost = namespace(value=0) %}
             {% for day in plan.days %}
                 {% for item in day.items %}
                     {% set total_estimated_cost.value = total_estimated_cost.value + item.estimated_cost %}
+                    {% for cost in item.actual_costs %}
+                        {% set total_actual_cost.value = total_actual_cost.value + cost.amount %}
+                    {% endfor %}
                 {% endfor %}
             {% endfor %}
             <h4>Total Estimated Cost: {{ "%.2f"|format(total_estimated_cost.value) }}</h4>
+            <h4 id="total-actual-cost">Total Actual Cost: {{ "%.2f"|format(total_actual_cost.value) }}</h4>
             <div class="itinerary-scrollable">
             {% for day in plan.days %}
                 <h4 class="mt-4">{{ day.date.strftime('%Y-%m-%d') }}</h4>
                 <div class="list-group" id="day-{{ day.id }}">
                     {% for item in day.items %}
                         <div class="item-wrapper">
+                            {% set item_actual_cost = namespace(value=0) %}
+                            {% for cost in item.actual_costs %}
+                                {% set item_actual_cost.value = item_actual_cost.value + cost.amount %}
+                            {% endfor %}
                             <div class="list-group-item mb-2" style="position: relative; padding-bottom: 50px;" id="item-{{ item.id }}">
                                 <h5 class="mb-1">{{ item.item_type }}: {{ item.description }}</h5>
                                 <small>Start: {{ item.start_time.strftime('%H:%M') if item.start_time else 'N/A' }}</small>
                                 <small>End: {{ item.end_time.strftime('%H:%M') if item.end_time else 'N/A' }}</small>
                                 <p class="mb-1">Estimated Cost: {{ "%.2f"|format(item.estimated_cost) }}</p>
-                                {% set total_estimated_cost.value = total_estimated_cost.value + item.estimated_cost %}
+                                <p class="mb-1" id="item-actual-cost-{{ item.id }}">Actual Cost: {{ "%.2f"|format(item_actual_cost.value) }}</p>
                                 {% if item.location %}
                                     <p class="mb-1">Location: {% if item.location.city %}{{ item.location.city }}, {% endif %}{{ item.location.name }}</p>
                                 {% endif %}
@@ -305,7 +314,24 @@ function deleteActualCost(costId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            document.getElementById(`cost-li-${costId}`).remove();
+            const liElement = document.getElementById(`cost-li-${costId}`);
+            const amountText = liElement.textContent.match(/[\d.]+/)[0];
+            const deletedAmount = parseFloat(amountText);
+            const itemId = liElement.closest('div[id^="actual-costs-"]').id.replace('actual-costs-', '');
+
+            liElement.remove();
+
+            // Update item's total actual cost
+            const itemActualCostElement = document.getElementById(`item-actual-cost-${itemId}`);
+            let currentItemTotal = parseFloat(itemActualCostElement.textContent.match(/[\d.]+/)[0]);
+            currentItemTotal -= deletedAmount;
+            itemActualCostElement.textContent = `Actual Cost: ${currentItemTotal.toFixed(2)}`;
+
+            // Update overall total actual cost
+            const totalActualCostElement = document.getElementById('total-actual-cost');
+            let currentTotal = parseFloat(totalActualCostElement.textContent.match(/[\d.]+/)[0]);
+            currentTotal -= deletedAmount;
+            totalActualCostElement.textContent = `Total Actual Cost: ${currentTotal.toFixed(2)}`;
         } else {
             alert('Failed to delete cost.');
         }
@@ -337,6 +363,18 @@ function addActualCost(itemId) {
             `;
             ul.appendChild(li);
             form.reset();
+            
+            // Update item's total actual cost
+            const itemActualCostElement = document.getElementById(`item-actual-cost-${itemId}`);
+            let currentItemTotal = parseFloat(itemActualCostElement.textContent.match(/[\d.]+/)[0]);
+            currentItemTotal += data.cost.amount;
+            itemActualCostElement.textContent = `Actual Cost: ${currentItemTotal.toFixed(2)}`;
+
+            // Update overall total actual cost
+            const totalActualCostElement = document.getElementById('total-actual-cost');
+            let currentTotal = parseFloat(totalActualCostElement.textContent.match(/[\d.]+/)[0]);
+            currentTotal += data.cost.amount;
+            totalActualCostElement.textContent = `Total Actual Cost: ${currentTotal.toFixed(2)}`;
         } else {
             alert('Failed to add cost.');
         }
